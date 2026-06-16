@@ -45,7 +45,7 @@ export default function StatsPanel() {
       />
       <Stat label="Cash" value={fmtUSD(cash, { cents: true })} />
       <Stat label="Buying Power" value={fmtUSDCompact(stats.buyingPower)} sub={`${leverage}× leverage`} />
-      <Stat label="Borrowed" value={fmtUSDCompact(stats.borrowed)} tone={stats.borrowed > 0 ? "down" : "neutral"} />
+      <Stat label="Margin Used" value={fmtUSDCompact(stats.borrowed)} tone={stats.borrowed > 0 ? "down" : "neutral"} />
       <Stat
         label="Realized P/L"
         value={fmtSignedUSD(realizedPnL)}

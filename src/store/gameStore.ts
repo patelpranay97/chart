@@ -4,7 +4,12 @@ import { useMemo } from "react";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { buildRandomRound, type Round } from "@/lib/data";
-import { computeFill } from "@/lib/engine";
+import {
+  computeFill,
+  dailyMarginInterest,
+  liquidationPrice,
+  marginUsed,
+} from "@/lib/engine";
 import {
   canTakeLoan,
   clampStartingCapital,
@@ -59,7 +64,8 @@ interface GameState {
 
   round: Round | null;
   revealed: number; // number of candles currently visible
-  startingCash: number; // bankroll cash brought into the active round
+  startingCash: number; // tradeable cash brought in (net worth + loans) — buying power
+  startingEquity: number; // own capital brought in (net worth, excl. loans) — return %
 
   cash: number;
   realizedPnL: number;
@@ -129,8 +135,11 @@ export function derive(s: GameState): DerivedStats | null {
     : 0;
   const equity = s.cash + (s.position ? s.position.dir * s.position.shares * price : 0);
   const buyingPower = Math.max(0, equity * s.config.leverage - exposure);
-  const borrowed = Math.max(0, -s.cash);
-  const start = s.startingCash || s.startingCapital;
+  // Margin used = financed notional beyond your own equity (works for shorts too,
+  // whose sale proceeds keep cash positive yet still run on margin).
+  const borrowed = marginUsed(exposure, equity);
+  const startCash = s.startingCash || s.startingCapital; // tradeable basis (incl. loans)
+  const startEquity = s.startingEquity || s.startingCapital; // own-equity basis
   return {
     index,
     price,
@@ -140,8 +149,9 @@ export function derive(s: GameState): DerivedStats | null {
     buyingPower,
     borrowed,
     positionValue: exposure,
-    returnPct: ((equity - start) / start) * 100,
-    realizedPct: (s.realizedPnL / start) * 100,
+    // % is measured on your own equity, not on equity + the broker's loan.
+    returnPct: ((equity - startCash) / startEquity) * 100,
+    realizedPct: (s.realizedPnL / startEquity) * 100,
     buyHoldPct: ((price - s.round.candles[0].close) / s.round.candles[0].close) * 100,
   };
 }
@@ -225,6 +235,7 @@ export const useGame = create<GameState>((set, get) => ({
   round: null,
   revealed: 0,
   startingCash: DEFAULT_STARTING_CAPITAL,
+  startingEquity: DEFAULT_STARTING_CAPITAL,
 
   cash: 0,
   realizedPnL: 0,
@@ -288,13 +299,16 @@ export const useGame = create<GameState>((set, get) => ({
   startGame: async () => {
     set({ loading: true });
     const round = await buildRandomRound();
-    const startingCash = lifetimeStats(get().lifetime, get().startingCapital).cash;
+    const life = lifetimeStats(get().lifetime, get().startingCapital);
+    const startingCash = life.cash; // net worth + any outstanding loans (tradeable)
+    const startingEquity = life.netWorth; // own capital (return % + loss floor basis)
     set({
       loading: false,
       phase: "playing",
       round,
       revealed: round.initialBars,
       startingCash,
+      startingEquity,
       cash: startingCash,
       realizedPnL: 0,
       position: null,
@@ -371,23 +385,32 @@ export const useGame = create<GameState>((set, get) => ({
     }
     working = { ...working, orders: remaining };
 
-    // Auto-liquidation: if the position's loss exceeds available cash, force
-    // close at this bar's close and end the game.
-    const price = bar.close;
-    const equity =
-      working.cash + (working.position ? working.position.dir * working.position.shares * price : 0);
-    if (working.position && equity <= 0) {
-      const liq = computeFill(
-        working,
-        working.position.dir === 1 ? "sell" : "buy",
-        working.position.shares,
-        price,
-        index,
-      );
-      if (liq) working = { ...working, ...liq };
-      set({ ...working, orders: [], liquidated: true });
-      get().endGame();
-      return;
+    // Carry cost: accrue one day of interest on the financed margin balance, so
+    // holding leverage for many days actually costs money (like a real loan).
+    if (working.position) {
+      const px = bar.close;
+      const exp = working.position.shares * px;
+      const eq = working.cash + working.position.dir * working.position.shares * px;
+      const interest = dailyMarginInterest(marginUsed(exp, eq));
+      if (interest > 0) working = { ...working, cash: working.cash - interest };
+    }
+
+    // Maintenance-margin liquidation: a real broker force-closes the moment
+    // equity falls below the maintenance requirement — well before you're wiped
+    // out. Check the bar's adverse extreme (low for longs, high for shorts); if
+    // price gapped straight through, fill at the open (the first tradeable price).
+    if (working.position) {
+      const pos = working.position;
+      const liqPx = liquidationPrice(working.cash, pos);
+      const breached = pos.dir === 1 ? bar.low <= liqPx : bar.high >= liqPx;
+      if (breached) {
+        const fillPx = pos.dir === 1 ? Math.min(liqPx, bar.open) : Math.max(liqPx, bar.open);
+        const liq = computeFill(working, pos.dir === 1 ? "sell" : "buy", pos.shares, fillPx, index);
+        if (liq) working = { ...working, ...liq };
+        set({ ...working, orders: [], liquidated: true });
+        get().endGame();
+        return;
+      }
     }
 
     set(working);
@@ -441,9 +464,13 @@ export const useGame = create<GameState>((set, get) => ({
     if (s.position) get().closePosition();
     const after = get();
     const d = derive(after)!;
-    const start = after.startingCash;
-    const profit = after.realizedPnL;
-    const returnPct = (profit / start) * 100;
+    const startEquity = after.startingEquity || after.startingCapital;
+    // Profit = the true change in account value (flat now, so equity = cash) —
+    // this captures margin interest, not just trade P&L. Floor a single game's
+    // loss at the player's own equity so a gap-through wipes you to $0 net worth
+    // rather than into compounding debt (you can blow up, not owe the broker).
+    const profit = Math.max(d.equity - after.startingCash, -startEquity);
+    const returnPct = (profit / startEquity) * 100;
     const buyHoldPct = d.buyHoldPct;
     const liquidated = after.liquidated;
     const rating = liquidated

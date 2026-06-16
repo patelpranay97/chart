@@ -20,6 +20,37 @@ export type FillSlice = FillInput;
 // frictionless buy & hold benchmark is genuinely hard to beat by overtrading.
 export const SLIPPAGE = 0.0005; // 5 bps
 
+// --- Real-world margin mechanics -------------------------------------------
+// A broker force-liquidates when account equity falls below this fraction of
+// position value (the "maintenance margin"). Kept below 1/maxLeverage (the
+// richest preset is 5x → 20% equity at entry) so every leverage preset can
+// still be opened, while higher leverage liquidates on a smaller adverse move.
+export const MAINTENANCE_MARGIN = 0.15;
+
+// Annualized interest charged on the financed (margin) balance, accrued daily.
+export const MARGIN_RATE_ANNUAL = 0.08;
+const TRADING_DAYS_PER_YEAR = 252;
+
+// The portion of a position's notional financed beyond the trader's own equity
+// — i.e. the margin actually borrowed. Correct for both longs and shorts.
+export function marginUsed(exposure: number, equity: number): number {
+  return Math.max(0, exposure - equity);
+}
+
+// One trading day's interest cost on a given margin balance.
+export function dailyMarginInterest(margin: number): number {
+  return Math.max(0, margin) * (MARGIN_RATE_ANNUAL / TRADING_DAYS_PER_YEAR);
+}
+
+// The price at which equity falls to the maintenance requirement
+// (equity = MAINTENANCE_MARGIN * exposure) — past it the broker liquidates.
+// equity = cash + dir*shares*p, exposure = shares*p, so the breach price is
+// p = cash / (shares * (MAINTENANCE_MARGIN - dir)). For an unlevered long
+// (cash ≥ 0) this is ≤ 0, i.e. it can never be hit — correct.
+export function liquidationPrice(cash: number, position: Position): number {
+  return cash / (position.shares * (MAINTENANCE_MARGIN - position.dir));
+}
+
 export function computeFill(
   s: FillInput,
   side: OrderSide,
