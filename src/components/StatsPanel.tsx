@@ -37,7 +37,7 @@ export default function StatsPanel() {
     n > 0 ? "up" : n < 0 ? "down" : "neutral";
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
       <Stat
         label="Account Value"
         value={fmtUSD(stats.equity, { cents: true })}

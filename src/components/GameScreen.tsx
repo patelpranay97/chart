@@ -35,12 +35,16 @@ export default function GameScreen() {
 
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row">
-      {/* Chart + OHLC header — capped height so candles + volume sit in one view */}
-      <div className="flex min-h-0 flex-col p-2 lg:flex-1 lg:self-start">
+      {/* Chart + OHLC header + stats — the chart flexes to fill so the whole
+          left column fits one screen with no scroll. */}
+      <div className="flex min-h-0 flex-col gap-2 p-2 lg:flex-1">
         <OhlcHeader />
-        <div className="h-[50vh] overflow-hidden rounded-xl border border-line bg-panel p-1 lg:h-[74vh]">
+        <div className="h-[50vh] overflow-hidden rounded-xl border border-line bg-panel p-1 lg:h-auto lg:min-h-0 lg:flex-1">
           <Chart />
         </div>
+        <Section title="Statistics">
+          <StatsPanel />
+        </Section>
       </div>
 
       {/* Right panel — chartgame-style stack */}
@@ -91,10 +95,6 @@ export default function GameScreen() {
           </div>
           <div className="p-3">{tab === "trades" ? <TradesTab /> : <IndicatorsTab />}</div>
         </div>
-
-        <Section title="Statistics">
-          <StatsPanel />
-        </Section>
       </aside>
     </div>
   );
