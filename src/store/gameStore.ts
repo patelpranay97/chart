@@ -83,7 +83,6 @@ interface GameState {
   sizePct: number; // fraction of buying power deployed per entry
   indicators: IndicatorSettings;
   candleType: CandleType;
-  advanceOnTrade: boolean; // reveal the next day when a simple trade fills
 
   result: GameResult | null;
 
@@ -93,7 +92,6 @@ interface GameState {
   setSizePct: (p: number) => void;
   setAdvanced: (v: boolean) => void;
   setCandleType: (t: CandleType) => void;
-  setAdvanceOnTrade: (v: boolean) => void;
   startGame: () => Promise<void>;
   skipGame: () => Promise<void>;
   toSetup: () => void;
@@ -201,19 +199,15 @@ function loadConfig(): GameConfig {
 const UIPREFS_KEY = "cg_uiprefs";
 interface UiPrefs {
   candleType: CandleType;
-  advanceOnTrade: boolean;
 }
 function loadUiPrefs(): UiPrefs {
-  const def: UiPrefs = { candleType: "heikin", advanceOnTrade: true };
+  const def: UiPrefs = { candleType: "heikin" };
   if (typeof window === "undefined") return def;
   try {
     const raw = localStorage.getItem(UIPREFS_KEY);
     if (!raw) return def;
     const p = JSON.parse(raw);
-    return {
-      candleType: p.candleType === "regular" ? "regular" : "heikin",
-      advanceOnTrade: p.advanceOnTrade !== false,
-    };
+    return { candleType: p.candleType === "regular" ? "regular" : "heikin" };
   } catch {
     return def;
   }
@@ -253,7 +247,6 @@ export const useGame = create<GameState>((set, get) => ({
   sizePct: 0.25,
   indicators: DEFAULT_INDICATORS,
   candleType: "heikin",
-  advanceOnTrade: true,
 
   result: null,
 
@@ -264,7 +257,6 @@ export const useGame = create<GameState>((set, get) => ({
       startingCapital: loadStartingCapital(),
       config: loadConfig(),
       candleType: ui.candleType,
-      advanceOnTrade: ui.advanceOnTrade,
     });
   },
 
@@ -289,11 +281,7 @@ export const useGame = create<GameState>((set, get) => ({
   setAdvanced: (v) => set({ advanced: v }),
   setCandleType: (t) => {
     set({ candleType: t });
-    saveUiPrefs({ candleType: t, advanceOnTrade: get().advanceOnTrade });
-  },
-  setAdvanceOnTrade: (v) => {
-    set({ advanceOnTrade: v });
-    saveUiPrefs({ candleType: get().candleType, advanceOnTrade: v });
+    saveUiPrefs({ candleType: t });
   },
 
   startGame: async () => {

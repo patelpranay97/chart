@@ -64,8 +64,6 @@ export default function IndicatorsTab() {
   const set = useGame((s) => s.setIndicators);
   const candleType = useGame((s) => s.candleType);
   const setCandleType = useGame((s) => s.setCandleType);
-  const advanceOnTrade = useGame((s) => s.advanceOnTrade);
-  const setAdvanceOnTrade = useGame((s) => s.setAdvanceOnTrade);
   const patch = (p: Partial<IndicatorSettings>) => set(p);
 
   return (
@@ -88,11 +86,6 @@ export default function IndicatorsTab() {
           ))}
         </div>
       </div>
-      <Toggle
-        checked={advanceOnTrade}
-        onChange={setAdvanceOnTrade}
-        label="Reveal next day on trade"
-      />
       <Toggle checked={ind.flags} onChange={(v) => patch({ flags: v })} label="Entry / exit flags" />
       <Toggle checked={ind.orderLine} onChange={(v) => patch({ orderLine: v })} label="Cost-basis line" />
       <Toggle checked={ind.tradeLines} onChange={(v) => patch({ tradeLines: v })} label="Trade lines" />

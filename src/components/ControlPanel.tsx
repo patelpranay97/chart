@@ -17,16 +17,15 @@ export default function ControlPanel() {
   const sizePct = useGame((s) => s.sizePct);
   const revealed = useGame((s) => s.revealed);
   const advanced = useGame((s) => s.advanced);
-  const advanceOnTrade = useGame((s) => s.advanceOnTrade);
   const nextBar = useGame((s) => s.nextBar);
   const enter = useGame((s) => s.enter);
   const closePosition = useGame((s) => s.closePosition);
   const setSizePct = useGame((s) => s.setSizePct);
   if (!stats) return null;
 
-  // Reveal the next day after a trade actually fills.
+  // A trade always reveals the next day once it actually fills.
   const afterTrade = (filled: boolean) => {
-    if (filled && advanceOnTrade) nextBar();
+    if (filled) nextBar();
   };
 
   const futureLeft = MAX_FUTURE - (revealed - INITIAL_BARS);
