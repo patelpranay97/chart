@@ -1,8 +1,8 @@
 "use client";
 
 import ProfitChart from "./ProfitChart";
-import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/format";
-import { canTakeLoan } from "@/lib/lifetime";
+import { fmtPct, fmtSignedUSD, fmtUSD, fmtUSDCompact } from "@/lib/format";
+import { canTakeLoan, loanAmount } from "@/lib/lifetime";
 import { ratePerformance } from "@/lib/rating";
 import { useGame, useLifetimeStats } from "@/store/gameStore";
 
@@ -12,6 +12,7 @@ export default function EndGameScreen() {
   const startGame = useGame((s) => s.startGame);
   const toSetup = useGame((s) => s.toSetup);
   const stats = useLifetimeStats();
+  const startingCapital = useGame((s) => s.startingCapital);
   const addLoan = useGame((s) => s.addLoan);
   if (!result) return null;
 
@@ -91,12 +92,12 @@ export default function EndGameScreen() {
             <div className="font-mono text-lg font-bold">{fmtUSD(stats.cash)}</div>
           </div>
         </div>
-        {canTakeLoan(stats) && (
+        {canTakeLoan(stats, startingCapital) && (
           <button
             onClick={addLoan}
             className="rounded-lg bg-down px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
           >
-            Borrow $100k
+            Borrow {fmtUSDCompact(loanAmount(startingCapital))}
           </button>
         )}
       </div>

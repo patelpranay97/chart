@@ -1,7 +1,6 @@
 "use client";
 
 import { fmtPct, fmtUSD, fmtUSDCompact } from "@/lib/format";
-import { STARTING_CAPITAL } from "@/lib/lifetime";
 import { computeProfile, type HistogramBucket, type NetWorthPoint } from "@/lib/stats";
 import { useGame } from "@/store/gameStore";
 
@@ -15,13 +14,13 @@ function StatCard({ label, value, tone }: { label: string; value: string; tone?:
   );
 }
 
-function NetWorthChart({ series }: { series: NetWorthPoint[] }) {
+function NetWorthChart({ series, base }: { series: NetWorthPoint[]; base: number }) {
   if (series.length < 2) {
     return <div className="grid h-44 place-items-center text-sm text-muted">Play a few games to chart your net worth.</div>;
   }
   const W = 560, H = 200, PAD = { l: 8, r: 8, t: 14, b: 18 };
   const xs = [0, ...series.map((p) => p.day)];
-  const ys = [STARTING_CAPITAL, ...series.map((p) => p.value)];
+  const ys = [base, ...series.map((p) => p.value)];
   const minY = Math.min(...ys), maxY = Math.max(...ys);
   const spanY = maxY - minY || 1;
   const minX = 0, maxX = Math.max(...xs) || 1;
@@ -30,9 +29,9 @@ function NetWorthChart({ series }: { series: NetWorthPoint[] }) {
   const y = (v: number) => PAD.t + innerH - ((v - minY) / spanY) * innerH;
   const path = xs.map((vx, i) => `${i === 0 ? "M" : "L"}${x(vx).toFixed(1)},${y(ys[i]).toFixed(1)}`).join(" ");
   const last = ys[ys.length - 1];
-  const up = last >= STARTING_CAPITAL;
+  const up = last >= base;
   const stroke = up ? "var(--up)" : "var(--down)";
-  const baseY = y(STARTING_CAPITAL);
+  const baseY = y(base);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Net worth over time">
       <defs>
@@ -48,7 +47,7 @@ function NetWorthChart({ series }: { series: NetWorthPoint[] }) {
         {fmtUSDCompact(last)}
       </text>
       <text x={PAD.l} y={baseY - 3} className="fill-[var(--muted)] text-[10px]">
-        {fmtUSDCompact(STARTING_CAPITAL)}
+        {fmtUSDCompact(base)}
       </text>
     </svg>
   );
@@ -101,7 +100,8 @@ function Donut({ played, skipped }: { played: number; skipped: number }) {
 
 export default function ProfileView() {
   const lifetime = useGame((s) => s.lifetime);
-  const s = computeProfile(lifetime);
+  const startingCapital = useGame((s) => s.startingCapital);
+  const s = computeProfile(lifetime, startingCapital);
   const tone = (n: number, flip = false): "up" | "down" | undefined =>
     n > 0 ? (flip ? "down" : "up") : n < 0 ? (flip ? "up" : "down") : undefined;
 
@@ -125,7 +125,7 @@ export default function ProfileView() {
 
       <div className="rounded-xl border border-line bg-panel p-5">
         <h2 className="mb-2 text-sm font-semibold text-muted">Net worth</h2>
-        <NetWorthChart series={s.netWorthSeries} />
+        <NetWorthChart series={s.netWorthSeries} base={startingCapital} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

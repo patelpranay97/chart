@@ -7,9 +7,10 @@ import { buildRandomRound, type Round } from "@/lib/data";
 import { computeFill } from "@/lib/engine";
 import {
   canTakeLoan,
+  clampStartingCapital,
+  DEFAULT_STARTING_CAPITAL,
   lifetimeStats,
-  LOAN_AMOUNT,
-  STARTING_CAPITAL,
+  loanAmount,
   SWING_DAYS,
   type LifetimeEvent,
   type LifetimeStats,
@@ -31,6 +32,7 @@ import type {
 
 const LIFETIME_KEY = "cg_lifetime";
 const CONFIG_KEY = "cg_config";
+const CAPITAL_KEY = "cg_starting_capital";
 
 const DEFAULT_CONFIG: GameConfig = { leverage: 1 };
 
@@ -53,6 +55,7 @@ interface GameState {
   config: GameConfig;
 
   lifetime: LifetimeEvent[];
+  startingCapital: number; // chosen account base — your "starting net worth"
 
   round: Round | null;
   revealed: number; // number of candles currently visible
@@ -80,6 +83,7 @@ interface GameState {
 
   init: () => void;
   setConfig: (c: Partial<GameConfig>) => void;
+  setStartingCapital: (amount: number) => void; // sets the base & resets account
   setSizePct: (p: number) => void;
   setAdvanced: (v: boolean) => void;
   setCandleType: (t: CandleType) => void;
@@ -126,7 +130,7 @@ export function derive(s: GameState): DerivedStats | null {
   const equity = s.cash + (s.position ? s.position.dir * s.position.shares * price : 0);
   const buyingPower = Math.max(0, equity * s.config.leverage - exposure);
   const borrowed = Math.max(0, -s.cash);
-  const start = s.startingCash || STARTING_CAPITAL;
+  const start = s.startingCash || s.startingCapital;
   return {
     index,
     price,
@@ -144,7 +148,7 @@ export function derive(s: GameState): DerivedStats | null {
 
 // Convenience selector for the persistent account.
 export function selectLifetime(s: GameState): LifetimeStats {
-  return lifetimeStats(s.lifetime);
+  return lifetimeStats(s.lifetime, s.startingCapital);
 }
 
 function loadLifetime(): LifetimeEvent[] {
@@ -159,6 +163,18 @@ function loadLifetime(): LifetimeEvent[] {
 function saveLifetime(events: LifetimeEvent[]) {
   if (typeof window !== "undefined") {
     localStorage.setItem(LIFETIME_KEY, JSON.stringify(events));
+  }
+}
+
+function loadStartingCapital(): number {
+  if (typeof window === "undefined") return DEFAULT_STARTING_CAPITAL;
+  const raw = localStorage.getItem(CAPITAL_KEY);
+  return raw ? clampStartingCapital(Number(raw)) : DEFAULT_STARTING_CAPITAL;
+}
+
+function saveStartingCapital(amount: number) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CAPITAL_KEY, String(amount));
   }
 }
 
@@ -204,10 +220,11 @@ export const useGame = create<GameState>((set, get) => ({
   config: DEFAULT_CONFIG,
 
   lifetime: [],
+  startingCapital: DEFAULT_STARTING_CAPITAL,
 
   round: null,
   revealed: 0,
-  startingCash: STARTING_CAPITAL,
+  startingCash: DEFAULT_STARTING_CAPITAL,
 
   cash: 0,
   realizedPnL: 0,
@@ -233,6 +250,7 @@ export const useGame = create<GameState>((set, get) => ({
     const ui = loadUiPrefs();
     set({
       lifetime: loadLifetime(),
+      startingCapital: loadStartingCapital(),
       config: loadConfig(),
       candleType: ui.candleType,
       advanceOnTrade: ui.advanceOnTrade,
@@ -245,6 +263,15 @@ export const useGame = create<GameState>((set, get) => ({
     if (typeof window !== "undefined") {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     }
+  },
+
+  // Changing your starting net worth begins a fresh account at that base —
+  // past dollar P/L was earned relative to the old size and can't carry over.
+  setStartingCapital: (amount) => {
+    const startingCapital = clampStartingCapital(amount);
+    saveStartingCapital(startingCapital);
+    saveLifetime([]);
+    set({ startingCapital, lifetime: [], phase: "setup", result: null, round: null });
   },
 
   setSizePct: (p) => set({ sizePct: p }),
@@ -261,7 +288,7 @@ export const useGame = create<GameState>((set, get) => ({
   startGame: async () => {
     set({ loading: true });
     const round = await buildRandomRound();
-    const startingCash = lifetimeStats(get().lifetime).cash;
+    const startingCash = lifetimeStats(get().lifetime, get().startingCapital).cash;
     set({
       loading: false,
       phase: "playing",
@@ -458,10 +485,10 @@ export const useGame = create<GameState>((set, get) => ({
 
   addLoan: () => {
     const s = get();
-    if (!canTakeLoan(lifetimeStats(s.lifetime))) return;
+    if (!canTakeLoan(lifetimeStats(s.lifetime, s.startingCapital), s.startingCapital)) return;
     const lifetime: LifetimeEvent[] = [
       ...s.lifetime,
-      { kind: "loan", amount: LOAN_AMOUNT, days: 0, playedAt: Date.now() },
+      { kind: "loan", amount: loanAmount(s.startingCapital), days: 0, playedAt: Date.now() },
     ];
     saveLifetime(lifetime);
     set({ lifetime });
@@ -488,5 +515,6 @@ export function useDerived(): DerivedStats | null {
 // stabilize it; instead subscribe to the (stable) lifetime array and memoize.
 export function useLifetimeStats(): LifetimeStats {
   const lifetime = useGame((s) => s.lifetime);
-  return useMemo(() => lifetimeStats(lifetime), [lifetime]);
+  const startingCapital = useGame((s) => s.startingCapital);
+  return useMemo(() => lifetimeStats(lifetime, startingCapital), [lifetime, startingCapital]);
 }

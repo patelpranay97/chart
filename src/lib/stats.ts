@@ -1,7 +1,7 @@
 // Lifetime performance analytics derived from the windowed game history.
 import {
+  DEFAULT_STARTING_CAPITAL,
   lifetimeStats,
-  STARTING_CAPITAL,
   type GameEvent,
   type LifetimeEvent,
 } from "./lifetime";
@@ -97,8 +97,11 @@ function buildBadges(s: Omit<ProfileStats, "badges">): Badge[] {
   }));
 }
 
-export function computeProfile(events: LifetimeEvent[]): ProfileStats {
-  const life = lifetimeStats(events);
+export function computeProfile(
+  events: LifetimeEvent[],
+  base: number = DEFAULT_STARTING_CAPITAL,
+): ProfileStats {
+  const life = lifetimeStats(events, base);
   const games = life.windowed.filter((e): e is GameEvent => e.kind === "game");
   const played = games.filter((g) => !g.skipped);
   const skipped = games.filter((g) => g.skipped).length;
@@ -111,28 +114,28 @@ export function computeProfile(events: LifetimeEvent[]): ProfileStats {
   const series: NetWorthPoint[] = [];
   let cumProfit = 0;
   let day = 0;
-  let peak = STARTING_CAPITAL;
+  let peak = base;
   let maxDD = 0;
   for (const g of games) {
     cumProfit += g.profit;
     day += g.days;
-    const value = STARTING_CAPITAL + cumProfit;
+    const value = base + cumProfit;
     peak = Math.max(peak, value);
     if (peak > 0) maxDD = Math.max(maxDD, (peak - value) / peak);
     series.push({ day, value });
   }
 
-  const totalReturnPct = ((life.netWorth - STARTING_CAPITAL) / STARTING_CAPITAL) * 100;
+  const totalReturnPct = ((life.netWorth - base) / base) * 100;
   const sd = std(returns);
   const sharpe = sd > 0 ? mean(returns) / sd : 0;
   const acr =
     life.daysUsed > 0 && life.netWorth > 0
-      ? ((life.netWorth / STARTING_CAPITAL) ** (TRADING_DAYS_PER_YEAR / life.daysUsed) - 1) * 100
+      ? ((life.netWorth / base) ** (TRADING_DAYS_PER_YEAR / life.daysUsed) - 1) * 100
       : 0;
 
-  const base: Omit<ProfileStats, "badges"> = {
+  const stats: Omit<ProfileStats, "badges"> = {
     netWorth: life.netWorth,
-    totalProfit: life.netWorth - STARTING_CAPITAL,
+    totalProfit: life.netWorth - base,
     totalReturnPct,
     gamesPlayed: played.length,
     skipped,
@@ -149,5 +152,5 @@ export function computeProfile(events: LifetimeEvent[]): ProfileStats {
     histogram: histogram(returns),
   };
 
-  return { ...base, badges: buildBadges(base) };
+  return { ...stats, badges: buildBadges(stats) };
 }

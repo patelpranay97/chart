@@ -1,17 +1,33 @@
 // The persistent "lifetime" account model.
 //
-// Every user starts with $1,000,000. Each swing game consumes 90 trading days
-// from a rolling 18,250-day (≈50-year) window; once the window is full the
-// oldest events scroll off. Net worth, cash and stats always reflect only the
-// events still inside that window. Loans ($100k, taken when cash ≤ $25k) hand
-// you tradeable cash but weigh on net worth until they age out.
+// You pick a starting net worth (default $1,000,000) to match your real
+// portfolio size. Each swing game's profit accrues to that base; net worth,
+// cash and stats are all computed from it. Loans scale with the chosen size and
+// hand you tradeable cash that weighs on net worth until it ages out. Changing
+// your starting net worth begins a fresh account at the new size.
 import type { Ticker } from "./types";
 
-export const STARTING_CAPITAL = 1_000_000;
+export const DEFAULT_STARTING_CAPITAL = 1_000_000;
+export const STARTING_CAPITAL_PRESETS = [10_000, 50_000, 100_000, 1_000_000];
+export const MIN_STARTING_CAPITAL = 1_000;
+export const MAX_STARTING_CAPITAL = 100_000_000;
 export const LIFETIME_DAYS = 18_250;
 export const SWING_DAYS = 100;
-export const LOAN_AMOUNT = 100_000;
-export const LOAN_THRESHOLD = 25_000;
+
+// Loans scale with account size so the mechanic stays proportional at any port
+// size: borrow 10% of the base, offered once cash falls to ≤ 2.5% of the base.
+const LOAN_FRACTION = 0.1;
+const LOAN_THRESHOLD_FRACTION = 0.025;
+export function loanAmount(base: number): number {
+  return Math.max(1000, Math.round((base * LOAN_FRACTION) / 1000) * 1000);
+}
+export function loanThreshold(base: number): number {
+  return Math.round(base * LOAN_THRESHOLD_FRACTION);
+}
+export function clampStartingCapital(n: number): number {
+  if (!Number.isFinite(n)) return DEFAULT_STARTING_CAPITAL;
+  return Math.min(MAX_STARTING_CAPITAL, Math.max(MIN_STARTING_CAPITAL, Math.round(n)));
+}
 
 export interface GameEvent {
   kind: "game";
@@ -32,7 +48,7 @@ export interface GameEvent {
 
 export interface LoanEvent {
   kind: "loan";
-  amount: number; // LOAN_AMOUNT
+  amount: number; // loanAmount(base) at the time it was taken
   days: 0;
   playedAt: number;
 }
@@ -55,7 +71,10 @@ export function windowEvents(events: LifetimeEvent[]): LifetimeEvent[] {
   return events;
 }
 
-export function lifetimeStats(events: LifetimeEvent[]): LifetimeStats {
+export function lifetimeStats(
+  events: LifetimeEvent[],
+  base: number = DEFAULT_STARTING_CAPITAL,
+): LifetimeStats {
   const windowed = windowEvents(events);
   let profit = 0;
   let loans = 0;
@@ -70,7 +89,7 @@ export function lifetimeStats(events: LifetimeEvent[]): LifetimeStats {
       loans += e.amount;
     }
   }
-  const netWorth = STARTING_CAPITAL + profit;
+  const netWorth = base + profit;
   return {
     netWorth,
     cash: netWorth + loans,
@@ -82,6 +101,9 @@ export function lifetimeStats(events: LifetimeEvent[]): LifetimeStats {
   };
 }
 
-export function canTakeLoan(stats: LifetimeStats): boolean {
-  return stats.cash <= LOAN_THRESHOLD;
+export function canTakeLoan(
+  stats: LifetimeStats,
+  base: number = DEFAULT_STARTING_CAPITAL,
+): boolean {
+  return stats.cash <= loanThreshold(base);
 }

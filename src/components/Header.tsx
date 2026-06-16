@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { fmtUSDCompact } from "@/lib/format";
-import { STARTING_CAPITAL } from "@/lib/lifetime";
 import { useGame, useLifetimeStats } from "@/store/gameStore";
 import { useTheme } from "@/store/theme";
 
 function NetWorthChip() {
   const stats = useLifetimeStats();
-  const up = stats.netWorth >= STARTING_CAPITAL;
+  const startingCapital = useGame((s) => s.startingCapital);
+  const up = stats.netWorth >= startingCapital;
   return (
     <div className="hidden flex-col items-end sm:flex">
       <span className="text-[10px] uppercase tracking-wide text-muted">Net worth</span>
