@@ -1,8 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useGame } from "@/store/gameStore";
+import { fmtUSDCompact } from "@/lib/format";
+import { STARTING_CAPITAL } from "@/lib/lifetime";
+import { selectLifetime, useGame } from "@/store/gameStore";
 import { useTheme } from "@/store/theme";
+
+function NetWorthChip() {
+  const stats = useGame(selectLifetime);
+  const up = stats.netWorth >= STARTING_CAPITAL;
+  return (
+    <div className="hidden flex-col items-end sm:flex">
+      <span className="text-[10px] uppercase tracking-wide text-muted">Net worth</span>
+      <span className={`font-mono text-sm font-bold ${up ? "text-up" : "text-down"}`}>
+        {fmtUSDCompact(stats.netWorth)}
+      </span>
+    </div>
+  );
+}
 
 function ThemeToggle() {
   const theme = useTheme((s) => s.theme);
@@ -18,13 +34,14 @@ function ThemeToggle() {
   );
 }
 
-const MENU = [
-  "Profile",
-  "Help Center",
-  "Badges",
-  "Leaderboard",
-  "Discord",
-  "Logout",
+// Live items navigate; the rest are placeholders until the backend phase.
+const MENU: { label: string; href?: string }[] = [
+  { label: "Profile", href: "/profile" },
+  { label: "Help Center" },
+  { label: "Badges", href: "/profile" },
+  { label: "Leaderboard" },
+  { label: "Discord" },
+  { label: "Logout" },
 ];
 
 function ProfileMenu() {
@@ -48,17 +65,28 @@ function ProfileMenu() {
       </button>
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-lg border border-line bg-panel py-1 shadow-xl">
-          {MENU.map((item) => (
-            <div
-              key={item}
-              className="flex items-center justify-between px-3 py-2 text-sm text-muted"
-            >
-              <span>{item}</span>
-              <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                soon
-              </span>
-            </div>
-          ))}
+          {MENU.map((item) =>
+            item.href ? (
+              <Link
+                key={item.label}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-between px-3 py-2 text-sm text-fg transition hover:bg-panel-2"
+              >
+                <span>{item.label}</span>
+              </Link>
+            ) : (
+              <div
+                key={item.label}
+                className="flex items-center justify-between px-3 py-2 text-sm text-muted"
+              >
+                <span>{item.label}</span>
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                  soon
+                </span>
+              </div>
+            ),
+          )}
         </div>
       )}
     </div>
@@ -70,7 +98,8 @@ export default function Header() {
   const phase = useGame((s) => s.phase);
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-panel px-4">
-      <button
+      <Link
+        href="/"
         onClick={() => phase !== "playing" && toSetup()}
         className="flex items-center gap-2"
       >
@@ -80,8 +109,9 @@ export default function Header() {
         <span className="hidden rounded bg-panel-2 px-2 py-0.5 text-xs font-medium text-muted sm:inline">
           SPY · QQQ · VOO
         </span>
-      </button>
-      <div className="flex items-center gap-2">
+      </Link>
+      <div className="flex items-center gap-3">
+        <NetWorthChip />
         <ThemeToggle />
         <ProfileMenu />
       </div>

@@ -14,8 +14,17 @@ function Cell({ label, children }: { label: string; children: React.ReactNode })
 
 export default function PositionPanel() {
   const position = useGame((s) => s.position);
+  const orders = useGame((s) => s.orders);
   const stats = useGame(derive);
   if (!stats) return null;
+
+  // A protective stop for the open position is an opposite-side stop order.
+  const protectiveStop = position
+    ? orders
+        .filter((o) => o.kind === "stop" && o.side === (position.dir === 1 ? "sell" : "buy"))
+        .map((o) => o.price)
+        .sort((a, b) => (position.dir === 1 ? b - a : a - b))[0]
+    : undefined;
 
   if (!position) {
     return (
@@ -42,10 +51,11 @@ export default function PositionPanel() {
           {fmtSignedUSD(stats.unrealizedPnL, true)}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <Cell label="Shares">{fmtShares(position.shares)}</Cell>
-        <Cell label="Cost Basis">{fmtPrice(position.avgPrice)}</Cell>
+        <Cell label="Cost">{fmtPrice(position.avgPrice)}</Cell>
         <Cell label="Market">{fmtPrice(stats.price)}</Cell>
+        <Cell label="Stop">{protectiveStop != null ? fmtPrice(protectiveStop) : "n/a"}</Cell>
       </div>
     </div>
   );

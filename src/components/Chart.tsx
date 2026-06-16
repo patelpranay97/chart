@@ -54,12 +54,14 @@ export default function Chart() {
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const indicatorRefs = useRef<Record<string, ISeriesApi<"Line">>>({});
   const priceLineRef = useRef<IPriceLine | null>(null);
+  const orderLineRefs = useRef<Record<number, IPriceLine>>({});
   const didFitRoundRef = useRef<string | null>(null);
 
   const round = useGame((s) => s.round);
   const revealed = useGame((s) => s.revealed);
   const events = useGame((s) => s.events);
   const position = useGame((s) => s.position);
+  const orders = useGame((s) => s.orders);
   const indicators = useGame((s) => s.indicators);
   const theme = useTheme((s) => s.theme);
 
@@ -128,6 +130,7 @@ export default function Chart() {
       markersRef.current = null;
       indicatorRefs.current = {};
       priceLineRef.current = null;
+      orderLineRefs.current = {};
       didFitRoundRef.current = null;
     };
   }, []);
@@ -270,6 +273,35 @@ export default function Chart() {
       });
     }
   }, [position, indicators.orderLine, theme]);
+
+  // Resting limit/stop order lines.
+  useEffect(() => {
+    const candle = candleRef.current;
+    if (!candle) return;
+    const c = themeColors(theme);
+    const refs = orderLineRefs.current;
+    const live = new Set(orders.map((o) => o.id));
+    for (const idStr of Object.keys(refs)) {
+      const id = Number(idStr);
+      if (!live.has(id)) {
+        candle.removePriceLine(refs[id]);
+        delete refs[id];
+      }
+    }
+    for (const o of orders) {
+      if (refs[o.id]) {
+        candle.removePriceLine(refs[o.id]);
+      }
+      refs[o.id] = candle.createPriceLine({
+        price: o.price,
+        color: o.kind === "stop" ? c.down : c.text,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dotted,
+        axisLabelVisible: true,
+        title: `${o.kind} ${o.side}`,
+      });
+    }
+  }, [orders, theme]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

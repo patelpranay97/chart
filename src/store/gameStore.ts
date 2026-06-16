@@ -2,6 +2,16 @@
 
 import { create } from "zustand";
 import { buildRandomRound, type Round } from "@/lib/data";
+import { computeFill } from "@/lib/engine";
+import {
+  canTakeLoan,
+  lifetimeStats,
+  LOAN_AMOUNT,
+  STARTING_CAPITAL,
+  SWING_DAYS,
+  type LifetimeEvent,
+  type LifetimeStats,
+} from "@/lib/lifetime";
 import { ratePerformance } from "@/lib/rating";
 import type {
   Direction,
@@ -10,14 +20,16 @@ import type {
   GameResult,
   IndicatorSettings,
   MarkerEvent,
+  Order,
+  OrderSide,
   Position,
   Trade,
 } from "@/lib/types";
 
-const HISTORY_KEY = "cg_history";
+const LIFETIME_KEY = "cg_lifetime";
 const CONFIG_KEY = "cg_config";
 
-const DEFAULT_CONFIG: GameConfig = { startingCash: 100_000, leverage: 1 };
+const DEFAULT_CONFIG: GameConfig = { leverage: 1 };
 
 const DEFAULT_INDICATORS: IndicatorSettings = {
   flags: true,
@@ -36,9 +48,11 @@ interface GameState {
   loading: boolean;
   config: GameConfig;
 
+  lifetime: LifetimeEvent[];
+
   round: Round | null;
   revealed: number; // number of candles currently visible
-  startingCash: number; // frozen for the active round
+  startingCash: number; // bankroll cash brought into the active round
 
   cash: number;
   realizedPnL: number;
@@ -48,23 +62,34 @@ interface GameState {
   events: MarkerEvent[];
   nextTradeId: number;
 
+  advanced: boolean;
+  orders: Order[]; // resting limit/stop orders
+  nextOrderId: number;
+  liquidated: boolean;
+
   sizePct: number; // fraction of buying power deployed per entry
   indicators: IndicatorSettings;
 
   result: GameResult | null;
-  history: GameResult[];
 
   init: () => void;
   setConfig: (c: Partial<GameConfig>) => void;
   setSizePct: (p: number) => void;
+  setAdvanced: (v: boolean) => void;
   startGame: () => Promise<void>;
+  skipGame: () => Promise<void>;
   toSetup: () => void;
   nextBar: () => void;
   enter: (dir: Direction) => void;
   closePosition: () => void;
+  placeOrder: (o: { side: OrderSide; kind: "market" | "limit" | "stop"; price: number; shares: number }) => void;
+  cancelOrder: (id: number) => void;
   endGame: () => void;
+  addLoan: () => void;
+  resetAccount: () => void;
   setIndicators: (patch: Partial<IndicatorSettings>) => void;
 }
+
 
 export interface DerivedStats {
   index: number;
@@ -93,7 +118,7 @@ export function derive(s: GameState): DerivedStats | null {
   const equity = s.cash + (s.position ? s.position.dir * s.position.shares * price : 0);
   const buyingPower = Math.max(0, equity * s.config.leverage - exposure);
   const borrowed = Math.max(0, -s.cash);
-  const start = s.startingCash;
+  const start = s.startingCash || STARTING_CAPITAL;
   return {
     index,
     price,
@@ -109,12 +134,23 @@ export function derive(s: GameState): DerivedStats | null {
   };
 }
 
-function loadHistory(): GameResult[] {
+// Convenience selector for the persistent account.
+export function selectLifetime(s: GameState): LifetimeStats {
+  return lifetimeStats(s.lifetime);
+}
+
+function loadLifetime(): LifetimeEvent[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    return JSON.parse(localStorage.getItem(LIFETIME_KEY) || "[]");
   } catch {
     return [];
+  }
+}
+
+function saveLifetime(events: LifetimeEvent[]) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(LIFETIME_KEY, JSON.stringify(events));
   }
 }
 
@@ -133,9 +169,11 @@ export const useGame = create<GameState>((set, get) => ({
   loading: false,
   config: DEFAULT_CONFIG,
 
+  lifetime: [],
+
   round: null,
   revealed: 0,
-  startingCash: DEFAULT_CONFIG.startingCash,
+  startingCash: STARTING_CAPITAL,
 
   cash: 0,
   realizedPnL: 0,
@@ -145,13 +183,17 @@ export const useGame = create<GameState>((set, get) => ({
   events: [],
   nextTradeId: 1,
 
+  advanced: false,
+  orders: [],
+  nextOrderId: 1,
+  liquidated: false,
+
   sizePct: 1,
   indicators: DEFAULT_INDICATORS,
 
   result: null,
-  history: [],
 
-  init: () => set({ history: loadHistory(), config: loadConfig() }),
+  init: () => set({ lifetime: loadLifetime(), config: loadConfig() }),
 
   setConfig: (c) => {
     const config = { ...get().config, ...c };
@@ -162,11 +204,12 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   setSizePct: (p) => set({ sizePct: p }),
+  setAdvanced: (v) => set({ advanced: v }),
 
   startGame: async () => {
     set({ loading: true });
     const round = await buildRandomRound();
-    const startingCash = get().config.startingCash;
+    const startingCash = lifetimeStats(get().lifetime).cash;
     set({
       loading: false,
       phase: "playing",
@@ -180,77 +223,129 @@ export const useGame = create<GameState>((set, get) => ({
       trades: [],
       events: [],
       nextTradeId: 1,
+      orders: [],
+      nextOrderId: 1,
+      liquidated: false,
       result: null,
     });
+  },
+
+  skipGame: async () => {
+    const s = get();
+    // Skipping still consumes the trading days.
+    if (s.round) {
+      const d = derive(s)!;
+      const event: LifetimeEvent = {
+        kind: "game",
+        skipped: true,
+        symbol: s.round.symbol,
+        startDate: s.round.candles[0].time,
+        endDate: s.round.candles[d.index].time,
+        profit: 0,
+        returnPct: 0,
+        buyHoldPct: d.buyHoldPct,
+        ratingTier: 0,
+        ratingLabel: "Skipped",
+        trades: 0,
+        liquidated: false,
+        days: SWING_DAYS,
+        playedAt: Date.now(),
+      };
+      const lifetime = [...s.lifetime, event];
+      saveLifetime(lifetime);
+      set({ lifetime });
+    }
+    await get().startGame();
   },
 
   toSetup: () => set({ phase: "setup", result: null, round: null }),
 
   nextBar: () => {
     const s = get();
-    if (!s.round) return;
-    if (s.revealed < s.round.candles.length) set({ revealed: s.revealed + 1 });
+    if (!s.round || s.revealed >= s.round.candles.length) return;
+    const index = s.revealed; // newly revealed bar
+    const bar = s.round.candles[index];
+
+    // Evaluate resting orders against the new bar's range, filling sequentially.
+    let working: GameState = { ...s, revealed: s.revealed + 1 };
+    const remaining: Order[] = [];
+    for (const o of s.orders) {
+      const triggered =
+        o.kind === "limit"
+          ? o.side === "buy"
+            ? bar.low <= o.price
+            : bar.high >= o.price
+          : o.side === "buy"
+            ? bar.high >= o.price
+            : bar.low <= o.price;
+      if (!triggered) {
+        remaining.push(o);
+        continue;
+      }
+      const fill = computeFill(working, o.side, o.shares, o.price, index);
+      if (fill) working = { ...working, ...fill };
+    }
+    working = { ...working, orders: remaining };
+
+    // Auto-liquidation: if the position's loss exceeds available cash, force
+    // close at this bar's close and end the game.
+    const price = bar.close;
+    const equity =
+      working.cash + (working.position ? working.position.dir * working.position.shares * price : 0);
+    if (working.position && equity <= 0) {
+      const liq = computeFill(
+        working,
+        working.position.dir === 1 ? "sell" : "buy",
+        working.position.shares,
+        price,
+        index,
+      );
+      if (liq) working = { ...working, ...liq };
+      set({ ...working, orders: [], liquidated: true });
+      get().endGame();
+      return;
+    }
+
+    set(working);
   },
 
   enter: (dir) => {
     const s = get();
     const d = derive(s);
     if (!s.round || !d) return;
-    if (s.position && s.position.dir !== dir) return; // must close first
-    const price = d.price;
-    const shares = Math.floor((s.sizePct * d.buyingPower) / price);
-    if (shares < 1) return;
-
-    const cashDelta = dir === 1 ? -shares * price : shares * price;
-    let position: Position;
-    let positionEntryBar = s.positionEntryBar;
-    if (s.position) {
-      const total = s.position.shares + shares;
-      const avgPrice =
-        (s.position.shares * s.position.avgPrice + shares * price) / total;
-      position = { dir, shares: total, avgPrice };
-    } else {
-      position = { dir, shares, avgPrice: price };
-      positionEntryBar = d.index;
-    }
-    set({
-      cash: s.cash + cashDelta,
-      position,
-      positionEntryBar,
-      events: [...s.events, { bar: d.index, type: "entry", dir }],
-    });
+    const shares = Math.floor((s.sizePct * d.buyingPower) / d.price);
+    const fill = computeFill(s, dir === 1 ? "buy" : "sell", shares, d.price, d.index);
+    if (fill) set(fill);
   },
 
   closePosition: () => {
     const s = get();
     const d = derive(s);
     if (!s.round || !d || !s.position) return;
-    const price = d.price;
-    const { dir, shares, avgPrice } = s.position;
-    const cashDelta = dir === 1 ? shares * price : -shares * price;
-    const pnl = dir * shares * (price - avgPrice);
-    const pnlPct = dir * ((price - avgPrice) / avgPrice) * 100;
-    const trade: Trade = {
-      id: s.nextTradeId,
-      dir,
-      entryPrice: avgPrice,
-      exitPrice: price,
-      shares,
-      pnl,
-      pnlPct,
-      entryBar: s.positionEntryBar ?? d.index,
-      exitBar: d.index,
-    };
-    set({
-      cash: s.cash + cashDelta,
-      realizedPnL: s.realizedPnL + pnl,
-      position: null,
-      positionEntryBar: null,
-      trades: [...s.trades, trade],
-      events: [...s.events, { bar: d.index, type: "exit", dir }],
-      nextTradeId: s.nextTradeId + 1,
-    });
+    const fill = computeFill(
+      s,
+      s.position.dir === 1 ? "sell" : "buy",
+      s.position.shares,
+      d.price,
+      d.index,
+    );
+    if (fill) set(fill);
   },
+
+  placeOrder: ({ side, kind, price, shares }) => {
+    const s = get();
+    const d = derive(s);
+    if (!s.round || !d || shares < 1) return;
+    if (kind === "market") {
+      const fill = computeFill(s, side, shares, d.price, d.index);
+      if (fill) set(fill);
+      return;
+    }
+    const order: Order = { id: s.nextOrderId, side, kind, price, shares };
+    set({ orders: [...s.orders, order], nextOrderId: s.nextOrderId + 1 });
+  },
+
+  cancelOrder: (id) => set({ orders: get().orders.filter((o) => o.id !== id) }),
 
   endGame: () => {
     const s = get();
@@ -262,7 +357,10 @@ export const useGame = create<GameState>((set, get) => ({
     const profit = after.realizedPnL;
     const returnPct = (profit / start) * 100;
     const buyHoldPct = d.buyHoldPct;
-    const rating = ratePerformance(returnPct, returnPct - buyHoldPct);
+    const liquidated = after.liquidated;
+    const rating = liquidated
+      ? { tier: 0, label: "Liquidated" }
+      : ratePerformance(returnPct, returnPct - buyHoldPct);
     const result: GameResult = {
       symbol: after.round!.symbol,
       startDate: after.round!.candles[0].time,
@@ -273,13 +371,44 @@ export const useGame = create<GameState>((set, get) => ({
       trades: after.trades.length,
       ratingLabel: rating.label,
       ratingTier: rating.tier,
+      liquidated,
       playedAt: Date.now(),
     };
-    const history = [result, ...after.history].slice(0, 50);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    }
-    set({ phase: "ended", result, history });
+    const event: LifetimeEvent = {
+      kind: "game",
+      skipped: false,
+      symbol: result.symbol,
+      startDate: result.startDate,
+      endDate: result.endDate,
+      profit,
+      returnPct,
+      buyHoldPct,
+      ratingTier: rating.tier,
+      ratingLabel: rating.label,
+      trades: after.trades.length,
+      liquidated,
+      days: SWING_DAYS,
+      playedAt: result.playedAt,
+    };
+    const lifetime = [...after.lifetime, event];
+    saveLifetime(lifetime);
+    set({ phase: "ended", result, lifetime, orders: [] });
+  },
+
+  addLoan: () => {
+    const s = get();
+    if (!canTakeLoan(lifetimeStats(s.lifetime))) return;
+    const lifetime: LifetimeEvent[] = [
+      ...s.lifetime,
+      { kind: "loan", amount: LOAN_AMOUNT, days: 0, playedAt: Date.now() },
+    ];
+    saveLifetime(lifetime);
+    set({ lifetime });
+  },
+
+  resetAccount: () => {
+    saveLifetime([]);
+    set({ lifetime: [], phase: "setup", result: null, round: null });
   },
 
   setIndicators: (patch) => set({ indicators: { ...get().indicators, ...patch } }),

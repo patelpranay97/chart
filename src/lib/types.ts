@@ -47,10 +47,22 @@ export interface MarkerEvent {
   dir: Direction;
 }
 
+export type OrderSide = "buy" | "sell";
+export type OrderKind = "market" | "limit" | "stop";
+
+// A resting (pending) limit or stop order. Market orders fill immediately and
+// are never stored.
+export interface Order {
+  id: number;
+  side: OrderSide;
+  kind: "limit" | "stop";
+  price: number;
+  shares: number;
+}
+
 export type GamePhase = "setup" | "playing" | "ended";
 
 export interface GameConfig {
-  startingCash: number;
   leverage: number; // 1..5
 }
 
@@ -76,5 +88,6 @@ export interface GameResult {
   trades: number;
   ratingLabel: string;
   ratingTier: number;
+  liquidated: boolean;
   playedAt: number; // epoch ms
 }

@@ -1,19 +1,26 @@
 "use client";
 
 import ProfitChart from "./ProfitChart";
-import { fmtPct, fmtSignedUSD } from "@/lib/format";
+import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/format";
+import { canTakeLoan } from "@/lib/lifetime";
 import { ratePerformance } from "@/lib/rating";
-import { useGame } from "@/store/gameStore";
+import { selectLifetime, useGame } from "@/store/gameStore";
 
 export default function EndGameScreen() {
   const result = useGame((s) => s.result);
   const trades = useGame((s) => s.trades);
   const startGame = useGame((s) => s.startGame);
   const toSetup = useGame((s) => s.toSetup);
+  const stats = useGame(selectLifetime);
+  const addLoan = useGame((s) => s.addLoan);
   if (!result) return null;
 
   const rating = ratePerformance(result.returnPct, result.returnPct - result.buyHoldPct);
-  const win = result.profit >= 0;
+  const label = result.liquidated ? "Liquidated" : rating.label;
+  const blurb = result.liquidated
+    ? "Your position blew through your cash — forced exit."
+    : rating.blurb;
+  const win = !result.liquidated && result.profit >= 0;
   const beatHold = result.returnPct >= result.buyHoldPct;
 
   return (
@@ -23,9 +30,9 @@ export default function EndGameScreen() {
           Game over
         </div>
         <h1 className={`mt-1 text-3xl font-bold ${win ? "text-up" : "text-down"}`}>
-          {rating.label}
+          {label}
         </h1>
-        <p className="mt-1 text-muted">{rating.blurb}</p>
+        <p className="mt-1 text-muted">{blurb}</p>
       </div>
 
       {/* Reveal card */}
@@ -79,6 +86,32 @@ export default function EndGameScreen() {
       <div className="rounded-xl border border-line bg-panel p-5">
         <h2 className="mb-2 text-sm font-semibold text-muted">Cumulative profit per trade</h2>
         <ProfitChart trades={trades} />
+      </div>
+
+      {/* Account after this game */}
+      <div className="flex items-center justify-between rounded-xl border border-line bg-panel px-5 py-4">
+        <div className="flex gap-6">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted">Net worth</div>
+            <div className="font-mono text-lg font-bold">{fmtUSD(stats.netWorth)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted">Cash</div>
+            <div className="font-mono text-lg font-bold">{fmtUSD(stats.cash)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-muted">Days left</div>
+            <div className="font-mono text-lg font-bold">{stats.daysLeft.toLocaleString()}</div>
+          </div>
+        </div>
+        {canTakeLoan(stats) && (
+          <button
+            onClick={addLoan}
+            className="rounded-lg bg-down px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Borrow $100k
+          </button>
+        )}
       </div>
 
       <div className="flex gap-3">
