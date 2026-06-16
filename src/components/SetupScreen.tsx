@@ -43,7 +43,7 @@ export default function SetupScreen() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Swing Trader</h1>
+        <h1 className="text-3xl font-bold tracking-tight">ETF Practice</h1>
         <p className="mt-1 text-muted">
           Opens to a random day in SPY, QQQ or VOO history — symbol and date
           hidden — for up to 100 trading days. Some markets chop, some trend up,
@@ -123,7 +123,7 @@ export default function SetupScreen() {
           disabled={loading}
           className="mt-5 w-full rounded-lg bg-accent py-3 text-base font-semibold text-accent-fg transition hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? "Dealing a chart…" : "Play SwingTrader"}
+          {loading ? "Dealing a chart…" : "Start Practice"}
         </button>
       </div>
 

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChartGame — SPY / QQQ / VOO Swing Trainer",
+  title: "ETF Practice — SPY · QQQ · VOO",
   description:
     "Practice swing trading SPY, QQQ and VOO on real historical charts revealed bar-by-bar — symbol and date hidden.",
 };

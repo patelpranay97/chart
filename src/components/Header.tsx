@@ -104,7 +104,7 @@ export default function Header() {
         className="flex items-center gap-2"
       >
         <span className="text-lg font-bold tracking-tight text-fg">
-          Chart<span className="text-accent">Game</span>
+          ETF <span className="text-accent">Practice</span>
         </span>
         <span className="hidden rounded bg-panel-2 px-2 py-0.5 text-xs font-medium text-muted sm:inline">
           SPY · QQQ · VOO

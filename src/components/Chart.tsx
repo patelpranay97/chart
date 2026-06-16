@@ -105,8 +105,12 @@ export default function Chart() {
         borderColor: c.border,
         rightOffset: 2,
         fixLeftEdge: true,
+        visible: false, // hide the date axis — the date is the answer
       },
-      crosshair: { mode: CrosshairMode.Normal },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { labelVisible: false }, // no date tooltip on hover
+      },
       autoSize: true,
     });
 

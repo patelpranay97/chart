@@ -35,10 +35,10 @@ export default function GameScreen() {
 
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row">
-      {/* Chart + OHLC header */}
-      <div className="flex min-h-0 flex-col p-2 lg:flex-1">
+      {/* Chart + OHLC header — capped height so candles + volume sit in one view */}
+      <div className="flex min-h-0 flex-col p-2 lg:flex-1 lg:self-start">
         <OhlcHeader />
-        <div className="h-[48vh] min-h-0 overflow-hidden rounded-xl border border-line bg-panel p-1 lg:h-auto lg:flex-1">
+        <div className="h-[42vh] overflow-hidden rounded-xl border border-line bg-panel p-1 lg:h-[60vh]">
           <Chart />
         </div>
       </div>
