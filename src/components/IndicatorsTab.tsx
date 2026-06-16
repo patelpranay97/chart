@@ -62,10 +62,37 @@ function PeriodInput({
 export default function IndicatorsTab() {
   const ind = useGame((s) => s.indicators);
   const set = useGame((s) => s.setIndicators);
+  const candleType = useGame((s) => s.candleType);
+  const setCandleType = useGame((s) => s.setCandleType);
+  const advanceOnTrade = useGame((s) => s.advanceOnTrade);
+  const setAdvanceOnTrade = useGame((s) => s.setAdvanceOnTrade);
   const patch = (p: Partial<IndicatorSettings>) => set(p);
 
   return (
     <div className="flex flex-col divide-y divide-line">
+      <div className="flex items-center justify-between py-1.5">
+        <span className="text-sm">Candle type</span>
+        <div className="flex gap-1">
+          {(["heikin", "regular"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setCandleType(t)}
+              className={`rounded-md border px-2 py-1 text-xs font-medium transition ${
+                candleType === t
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-line hover:border-accent"
+              }`}
+            >
+              {t === "heikin" ? "Heikin-Ashi" : "Regular"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <Toggle
+        checked={advanceOnTrade}
+        onChange={setAdvanceOnTrade}
+        label="Reveal next day on trade"
+      />
       <Toggle checked={ind.flags} onChange={(v) => patch({ flags: v })} label="Entry / exit flags" />
       <Toggle checked={ind.orderLine} onChange={(v) => patch({ orderLine: v })} label="Cost-basis line" />
       <Toggle checked={ind.sma} onChange={(v) => patch({ sma: v })} label="SMA" swatch="#f5a623">

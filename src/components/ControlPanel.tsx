@@ -25,9 +25,15 @@ export default function ControlPanel() {
   const setSizePct = useGame((s) => s.setSizePct);
   const advanced = useGame((s) => s.advanced);
   const setAdvanced = useGame((s) => s.setAdvanced);
+  const advanceOnTrade = useGame((s) => s.advanceOnTrade);
   if (!stats) return null;
 
   const canSkip = !position && tradeCount === 0;
+
+  // Reveal the next day after a trade actually fills (chartgame-style loop).
+  const afterTrade = (filled: boolean) => {
+    if (filled && advanceOnTrade) nextBar();
+  };
 
   const barsAdvanced = revealed - INITIAL_BARS;
   const futureLeft = MAX_FUTURE - barsAdvanced;
@@ -105,13 +111,13 @@ export default function ControlPanel() {
           {!position ? (
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => enter(1)}
+                onClick={() => afterTrade(enter(1))}
                 className="rounded-lg bg-up py-3 text-sm font-bold text-white transition hover:opacity-90"
               >
                 Long
               </button>
               <button
-                onClick={() => enter(-1)}
+                onClick={() => afterTrade(enter(-1))}
                 className="rounded-lg bg-down py-3 text-sm font-bold text-white transition hover:opacity-90"
               >
                 Short
@@ -120,13 +126,13 @@ export default function ControlPanel() {
           ) : (
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => enter(position.dir)}
+                onClick={() => afterTrade(enter(position.dir))}
                 className="rounded-lg border border-line bg-panel-2 py-3 text-sm font-bold transition hover:border-accent"
               >
                 Add {position.dir === 1 ? "Long" : "Short"}
               </button>
               <button
-                onClick={closePosition}
+                onClick={() => afterTrade(closePosition())}
                 className={`rounded-lg py-3 text-sm font-bold text-white transition hover:opacity-90 ${
                   position.dir === 1 ? "bg-down" : "bg-up"
                 }`}

@@ -2,6 +2,8 @@
 
 export type Ticker = "SPY" | "QQQ" | "VOO";
 
+export type CandleType = "regular" | "heikin";
+
 // Compact on-disk bar tuple: [date, open, high, low, close, volume]
 export type RawBar = [string, number, number, number, number, number];
 

@@ -32,6 +32,24 @@ export function ema(candles: Candle[], period: number): (number | null)[] {
   return out;
 }
 
+// Heikin-Ashi transform. Each output candle smooths the real OHLC; the running
+// HA open depends on the prior HA candle, so this must be computed from the
+// start of the series. Volume is carried through unchanged. A candle renders
+// green when haClose >= haOpen (uptrend) and red otherwise.
+export function heikinAshi(candles: Candle[]): Candle[] {
+  const out: Candle[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const haClose = (c.open + c.high + c.low + c.close) / 4;
+    const haOpen =
+      i === 0 ? (c.open + c.close) / 2 : (out[i - 1].open + out[i - 1].close) / 2;
+    const haHigh = Math.max(c.high, haOpen, haClose);
+    const haLow = Math.min(c.low, haOpen, haClose);
+    out.push({ time: c.time, open: haOpen, high: haHigh, low: haLow, close: haClose, volume: c.volume });
+  }
+  return out;
+}
+
 // Anchored VWAP: cumulative typical-price * volume / cumulative volume,
 // anchored at the first bar of the series.
 export function vwap(candles: Candle[]): (number | null)[] {

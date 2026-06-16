@@ -17,7 +17,7 @@ import {
   type SeriesMarker,
   type Time,
 } from "lightweight-charts";
-import { ema, sma, vwap } from "@/lib/indicators";
+import { ema, heikinAshi, sma, vwap } from "@/lib/indicators";
 import type { Candle } from "@/lib/types";
 import { derive, useGame } from "@/store/gameStore";
 import { useTheme } from "@/store/theme";
@@ -63,11 +63,20 @@ export default function Chart() {
   const position = useGame((s) => s.position);
   const orders = useGame((s) => s.orders);
   const indicators = useGame((s) => s.indicators);
+  const candleType = useGame((s) => s.candleType);
   const theme = useTheme((s) => s.theme);
 
   const visible: Candle[] = useMemo(
     () => (round ? round.candles.slice(0, revealed) : []),
     [round, revealed],
+  );
+
+  // Candles actually drawn: Heikin-Ashi smooths the real OHLC into a clearer
+  // trend view. Trades still execute at the real close (see the store), so the
+  // cost-basis line may sit slightly off an HA body — that's inherent to HA.
+  const displayCandles: Candle[] = useMemo(
+    () => (candleType === "heikin" ? heikinAshi(visible) : visible),
+    [visible, candleType],
   );
 
   // Create the chart once.
@@ -164,7 +173,7 @@ export default function Chart() {
     const c = themeColors(theme);
 
     candle.setData(
-      visible.map((b) => ({
+      displayCandles.map((b) => ({
         time: b.time as Time,
         open: b.open,
         high: b.high,
@@ -173,7 +182,7 @@ export default function Chart() {
       })),
     );
     volume.setData(
-      visible.map((b) => ({
+      displayCandles.map((b) => ({
         time: b.time as Time,
         value: b.volume,
         color: (b.close >= b.open ? c.up : c.down) + "55",
@@ -186,7 +195,7 @@ export default function Chart() {
       chart.timeScale().fitContent();
       didFitRoundRef.current = key;
     }
-  }, [visible, round, theme]);
+  }, [displayCandles, round, theme]);
 
   // Indicator overlays — reconcile against the enabled set.
   useEffect(() => {
@@ -195,10 +204,10 @@ export default function Chart() {
     const refs = indicatorRefs.current;
 
     const configs: { key: string; on: boolean; data: (number | null)[] }[] = [
-      { key: "sma", on: indicators.sma, data: sma(visible, indicators.smaPeriod) },
-      { key: "sma2", on: indicators.sma2, data: sma(visible, indicators.sma2Period) },
-      { key: "ema", on: indicators.ema, data: ema(visible, indicators.emaPeriod) },
-      { key: "vwap", on: indicators.vwap, data: vwap(visible) },
+      { key: "sma", on: indicators.sma, data: sma(displayCandles, indicators.smaPeriod) },
+      { key: "sma2", on: indicators.sma2, data: sma(displayCandles, indicators.sma2Period) },
+      { key: "ema", on: indicators.ema, data: ema(displayCandles, indicators.emaPeriod) },
+      { key: "vwap", on: indicators.vwap, data: vwap(displayCandles) },
     ];
 
     for (const { key, on, data } of configs) {
@@ -213,7 +222,7 @@ export default function Chart() {
           });
         }
         refs[key].setData(
-          visible
+          displayCandles
             .map((b, i) => ({ time: b.time as Time, value: data[i] }))
             .filter((p) => p.value != null) as { time: Time; value: number }[],
         );
@@ -222,7 +231,7 @@ export default function Chart() {
         delete refs[key];
       }
     }
-  }, [visible, indicators, round]);
+  }, [displayCandles, indicators, round]);
 
   // Entry/exit flags.
   useEffect(() => {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/lifetime";
 import { ratePerformance } from "@/lib/rating";
 import type {
+  CandleType,
   Direction,
   GameConfig,
   GamePhase,
@@ -69,6 +70,8 @@ interface GameState {
 
   sizePct: number; // fraction of buying power deployed per entry
   indicators: IndicatorSettings;
+  candleType: CandleType;
+  advanceOnTrade: boolean; // reveal the next day when a simple trade fills
 
   result: GameResult | null;
 
@@ -76,12 +79,14 @@ interface GameState {
   setConfig: (c: Partial<GameConfig>) => void;
   setSizePct: (p: number) => void;
   setAdvanced: (v: boolean) => void;
+  setCandleType: (t: CandleType) => void;
+  setAdvanceOnTrade: (v: boolean) => void;
   startGame: () => Promise<void>;
   skipGame: () => Promise<void>;
   toSetup: () => void;
   nextBar: () => void;
-  enter: (dir: Direction) => void;
-  closePosition: () => void;
+  enter: (dir: Direction) => boolean;
+  closePosition: () => boolean;
   placeOrder: (o: { side: OrderSide; kind: "market" | "limit" | "stop"; price: number; shares: number }) => void;
   cancelOrder: (id: number) => void;
   endGame: () => void;
@@ -164,6 +169,32 @@ function loadConfig(): GameConfig {
   }
 }
 
+const UIPREFS_KEY = "cg_uiprefs";
+interface UiPrefs {
+  candleType: CandleType;
+  advanceOnTrade: boolean;
+}
+function loadUiPrefs(): UiPrefs {
+  const def: UiPrefs = { candleType: "heikin", advanceOnTrade: true };
+  if (typeof window === "undefined") return def;
+  try {
+    const raw = localStorage.getItem(UIPREFS_KEY);
+    if (!raw) return def;
+    const p = JSON.parse(raw);
+    return {
+      candleType: p.candleType === "regular" ? "regular" : "heikin",
+      advanceOnTrade: p.advanceOnTrade !== false,
+    };
+  } catch {
+    return def;
+  }
+}
+function saveUiPrefs(p: UiPrefs) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(UIPREFS_KEY, JSON.stringify(p));
+  }
+}
+
 export const useGame = create<GameState>((set, get) => ({
   phase: "setup",
   loading: false,
@@ -190,10 +221,20 @@ export const useGame = create<GameState>((set, get) => ({
 
   sizePct: 1,
   indicators: DEFAULT_INDICATORS,
+  candleType: "heikin",
+  advanceOnTrade: true,
 
   result: null,
 
-  init: () => set({ lifetime: loadLifetime(), config: loadConfig() }),
+  init: () => {
+    const ui = loadUiPrefs();
+    set({
+      lifetime: loadLifetime(),
+      config: loadConfig(),
+      candleType: ui.candleType,
+      advanceOnTrade: ui.advanceOnTrade,
+    });
+  },
 
   setConfig: (c) => {
     const config = { ...get().config, ...c };
@@ -205,6 +246,14 @@ export const useGame = create<GameState>((set, get) => ({
 
   setSizePct: (p) => set({ sizePct: p }),
   setAdvanced: (v) => set({ advanced: v }),
+  setCandleType: (t) => {
+    set({ candleType: t });
+    saveUiPrefs({ candleType: t, advanceOnTrade: get().advanceOnTrade });
+  },
+  setAdvanceOnTrade: (v) => {
+    set({ advanceOnTrade: v });
+    saveUiPrefs({ candleType: get().candleType, advanceOnTrade: v });
+  },
 
   startGame: async () => {
     set({ loading: true });
@@ -312,16 +361,18 @@ export const useGame = create<GameState>((set, get) => ({
   enter: (dir) => {
     const s = get();
     const d = derive(s);
-    if (!s.round || !d) return;
+    if (!s.round || !d) return false;
     const shares = Math.floor((s.sizePct * d.buyingPower) / d.price);
     const fill = computeFill(s, dir === 1 ? "buy" : "sell", shares, d.price, d.index);
-    if (fill) set(fill);
+    if (!fill) return false;
+    set(fill);
+    return true;
   },
 
   closePosition: () => {
     const s = get();
     const d = derive(s);
-    if (!s.round || !d || !s.position) return;
+    if (!s.round || !d || !s.position) return false;
     const fill = computeFill(
       s,
       s.position.dir === 1 ? "sell" : "buy",
@@ -329,7 +380,9 @@ export const useGame = create<GameState>((set, get) => ({
       d.price,
       d.index,
     );
-    if (fill) set(fill);
+    if (!fill) return false;
+    set(fill);
+    return true;
   },
 
   placeOrder: ({ side, kind, price, shares }) => {
