@@ -215,6 +215,10 @@ export default function Chart() {
       // Follow the newest bar as days reveal, preserving the user's zoom.
       chart.timeScale().scrollToRealTime();
     }
+    // Keep the newest candle in frame vertically: re-assert price-axis auto-scale
+    // so a new high/low recenters instead of clipping out of view (dragging the
+    // price axis turns autoScale off and it otherwise stays off).
+    candle.priceScale().applyOptions({ autoScale: true });
   }, [displayCandles, round, theme]);
 
   // Indicator overlays — reconcile against the enabled set.
