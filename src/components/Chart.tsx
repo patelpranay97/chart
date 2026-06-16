@@ -19,7 +19,7 @@ import {
 } from "lightweight-charts";
 import { ema, heikinAshi, sma, vwap } from "@/lib/indicators";
 import type { Candle } from "@/lib/types";
-import { derive, useGame } from "@/store/gameStore";
+import { useGame } from "@/store/gameStore";
 import { useTheme } from "@/store/theme";
 
 const UP = "#26a69a";

@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtPrice, fmtShares, fmtSignedUSD } from "@/lib/format";
-import { derive, useGame } from "@/store/gameStore";
+import { useDerived, useGame } from "@/store/gameStore";
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -15,7 +15,7 @@ function Cell({ label, children }: { label: string; children: React.ReactNode })
 export default function PositionPanel() {
   const position = useGame((s) => s.position);
   const orders = useGame((s) => s.orders);
-  const stats = useGame(derive);
+  const stats = useDerived();
   if (!stats) return null;
 
   // A protective stop for the open position is an opposite-side stop order.

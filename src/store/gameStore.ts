@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { create } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { buildRandomRound, type Round } from "@/lib/data";
 import { computeFill } from "@/lib/engine";
 import {
@@ -466,3 +468,19 @@ export const useGame = create<GameState>((set, get) => ({
 
   setIndicators: (patch) => set({ indicators: { ...get().indicators, ...patch } }),
 }));
+
+// `derive` and `lifetimeStats` build a fresh object on every call, which would
+// make the store snapshot never compare equal and trigger an infinite render
+// loop. These hooks hand components a stable reference instead.
+//
+// derive() returns a flat object → useShallow stabilizes it by shallow-equality.
+export function useDerived(): DerivedStats | null {
+  return useGame(useShallow(derive));
+}
+
+// lifetimeStats() contains a nested `windowed` array, so shallow-equality won't
+// stabilize it; instead subscribe to the (stable) lifetime array and memoize.
+export function useLifetimeStats(): LifetimeStats {
+  const lifetime = useGame((s) => s.lifetime);
+  return useMemo(() => lifetimeStats(lifetime), [lifetime]);
+}

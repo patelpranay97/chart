@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fmtPrice, fmtShares, fmtUSD } from "@/lib/format";
 import type { OrderKind, OrderSide } from "@/lib/types";
-import { derive, useGame } from "@/store/gameStore";
+import { useDerived, useGame } from "@/store/gameStore";
 
 const KINDS: OrderKind[] = ["market", "limit", "stop"];
 
@@ -47,7 +47,7 @@ function Seg<T extends string>({
 }
 
 export default function AdvancedOrder() {
-  const stats = useGame(derive);
+  const stats = useDerived();
   const orders = useGame((s) => s.orders);
   const placeOrder = useGame((s) => s.placeOrder);
   const cancelOrder = useGame((s) => s.cancelOrder);

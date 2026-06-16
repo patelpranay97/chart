@@ -4,14 +4,14 @@ import ProfitChart from "./ProfitChart";
 import { fmtPct, fmtSignedUSD, fmtUSD } from "@/lib/format";
 import { canTakeLoan } from "@/lib/lifetime";
 import { ratePerformance } from "@/lib/rating";
-import { selectLifetime, useGame } from "@/store/gameStore";
+import { useGame, useLifetimeStats } from "@/store/gameStore";
 
 export default function EndGameScreen() {
   const result = useGame((s) => s.result);
   const trades = useGame((s) => s.trades);
   const startGame = useGame((s) => s.startGame);
   const toSetup = useGame((s) => s.toSetup);
-  const stats = useGame(selectLifetime);
+  const stats = useLifetimeStats();
   const addLoan = useGame((s) => s.addLoan);
   if (!result) return null;
 

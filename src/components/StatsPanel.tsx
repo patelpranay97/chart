@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtPct, fmtSignedUSD, fmtUSD, fmtUSDCompact } from "@/lib/format";
-import { derive, useGame } from "@/store/gameStore";
+import { useDerived, useGame } from "@/store/gameStore";
 
 function Stat({
   label,
@@ -26,7 +26,7 @@ function Stat({
 }
 
 export default function StatsPanel() {
-  const stats = useGame(derive);
+  const stats = useDerived();
   const cash = useGame((s) => s.cash);
   const realizedPnL = useGame((s) => s.realizedPnL);
   const leverage = useGame((s) => s.config.leverage);

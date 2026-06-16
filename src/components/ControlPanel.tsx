@@ -3,7 +3,7 @@
 import AdvancedOrder from "./AdvancedOrder";
 import { fmtPrice, fmtShares } from "@/lib/format";
 import { INITIAL_BARS, MAX_FUTURE } from "@/lib/data";
-import { derive, useGame } from "@/store/gameStore";
+import { useDerived, useGame } from "@/store/gameStore";
 
 const SIZE_OPTIONS = [
   { label: "25%", value: 0.25 },
@@ -12,7 +12,7 @@ const SIZE_OPTIONS = [
 ];
 
 export default function ControlPanel() {
-  const stats = useGame(derive);
+  const stats = useDerived();
   const position = useGame((s) => s.position);
   const sizePct = useGame((s) => s.sizePct);
   const revealed = useGame((s) => s.revealed);

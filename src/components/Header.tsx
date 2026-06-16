@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { fmtUSDCompact } from "@/lib/format";
 import { STARTING_CAPITAL } from "@/lib/lifetime";
-import { selectLifetime, useGame } from "@/store/gameStore";
+import { useGame, useLifetimeStats } from "@/store/gameStore";
 import { useTheme } from "@/store/theme";
 
 function NetWorthChip() {
-  const stats = useGame(selectLifetime);
+  const stats = useLifetimeStats();
   const up = stats.netWorth >= STARTING_CAPITAL;
   return (
     <div className="hidden flex-col items-end sm:flex">

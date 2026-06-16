@@ -8,7 +8,7 @@ import {
   LOAN_THRESHOLD,
   STARTING_CAPITAL,
 } from "@/lib/lifetime";
-import { selectLifetime, useGame } from "@/store/gameStore";
+import { useGame, useLifetimeStats } from "@/store/gameStore";
 
 const LEVERAGE_PRESETS = [1, 2, 3, 5];
 
@@ -34,7 +34,7 @@ export default function SetupScreen() {
   const startGame = useGame((s) => s.startGame);
   const loading = useGame((s) => s.loading);
   const lifetime = useGame((s) => s.lifetime);
-  const stats = useGame(selectLifetime);
+  const stats = useLifetimeStats();
   const addLoan = useGame((s) => s.addLoan);
   const resetAccount = useGame((s) => s.resetAccount);
   const [confirmReset, setConfirmReset] = useState(false);
