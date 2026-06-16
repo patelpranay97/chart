@@ -79,9 +79,10 @@ export default function SetupScreen() {
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">ETF Practice</h1>
         <p className="mt-1 text-muted">
-          Opens to a random day in SPY, QQQ or VOO history — symbol and date
-          hidden — for up to 100 trading days. Some markets chop, some trend up,
-          some fall. Read it right and book the profit.
+          Opens to a random day in one of 14 ETFs — equity, sectors, gold, oil,
+          bonds, emerging markets — symbol and date hidden, for up to 100 trading
+          days. Some chop, some trend, some grind down for years. Read it right
+          and book the profit.
         </p>
       </div>
 

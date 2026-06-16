@@ -1,7 +1,15 @@
 // Market-data loading and random-round selection.
 import type { Candle, RawBar, Ticker, TickerData } from "./types";
 
-export const TICKERS: Ticker[] = ["SPY", "QQQ", "VOO"];
+// Multi-asset roster so "ETF" isn't one personality — broad equity, small caps,
+// rotating sectors, gold, oil, long bonds, and emerging markets.
+export const TICKERS: Ticker[] = [
+  "SPY", "QQQ", "VOO",
+  "IWM",
+  "XLF", "XLK", "XLU", "XLV", "XLE",
+  "GLD", "USO", "TLT",
+  "EEM", "FXI",
+];
 
 // How many candles are visible at the start of a round, and how many future
 // bars the player can advance through before the round must end.

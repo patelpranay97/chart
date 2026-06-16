@@ -7,7 +7,17 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public", "data");
 
-const TICKERS = ["SPY", "QQQ", "VOO"];
+// A multi-asset roster so "ETF" isn't one personality: broad US equity, small
+// caps, rotating sectors, gold, oil/energy, long bonds, and emerging markets.
+const TICKERS = [
+  "SPY", "QQQ", "VOO", // broad US equity
+  "IWM", // small caps — choppier, fails more
+  "XLF", "XLK", "XLU", "XLV", "XLE", // sectors that rotate independently
+  "GLD", // gold — mean-reverting, long flat stretches
+  "USO", // oil — boom/bust, violent
+  "TLT", // long Treasuries — inverse to rates, multi-year bear
+  "EEM", "FXI", // emerging markets / China — long stretches sideways/down
+];
 
 function round(n, d = 4) {
   if (n == null || !Number.isFinite(n)) return null;
@@ -53,18 +63,25 @@ async function fetchTicker(symbol) {
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   const manifest = [];
+  const failed = [];
   for (const symbol of TICKERS) {
     process.stdout.write(`Fetching ${symbol}... `);
-    const data = await fetchTicker(symbol);
-    await writeFile(join(OUT_DIR, `${symbol}.json`), JSON.stringify(data));
-    manifest.push({
-      symbol,
-      bars: data.bars.length,
-      start: data.bars[0][0],
-      end: data.bars[data.bars.length - 1][0],
-    });
-    console.log(`${data.bars.length} bars (${data.bars[0][0]} -> ${data.bars[data.bars.length - 1][0]})`);
+    try {
+      const data = await fetchTicker(symbol);
+      await writeFile(join(OUT_DIR, `${symbol}.json`), JSON.stringify(data));
+      manifest.push({
+        symbol,
+        bars: data.bars.length,
+        start: data.bars[0][0],
+        end: data.bars[data.bars.length - 1][0],
+      });
+      console.log(`${data.bars.length} bars (${data.bars[0][0]} -> ${data.bars[data.bars.length - 1][0]})`);
+    } catch (e) {
+      failed.push(symbol);
+      console.log(`FAILED — ${e.message}`);
+    }
   }
+  if (failed.length) console.warn(`\n⚠️  ${failed.length} failed: ${failed.join(", ")}`);
   await writeFile(join(OUT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2));
   console.log("Wrote", join(OUT_DIR, "manifest.json"));
 }

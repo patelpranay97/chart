@@ -107,7 +107,7 @@ export default function Header() {
           ETF <span className="text-accent">Practice</span>
         </span>
         <span className="hidden rounded bg-panel-2 px-2 py-0.5 text-xs font-medium text-muted sm:inline">
-          SPY · QQQ · VOO
+          14 ETFs
         </span>
       </Link>
       <div className="flex items-center gap-3">

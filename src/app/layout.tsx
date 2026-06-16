@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ETF Practice — SPY · QQQ · VOO",
+  title: "ETF Practice — 14 ETFs across asset classes",
   description:
-    "Practice swing trading SPY, QQQ and VOO on real historical charts revealed bar-by-bar — symbol and date hidden.",
+    "Practice swing trading 14 ETFs — equity, sectors, gold, oil, bonds and emerging markets — on real historical charts revealed bar-by-bar, symbol and date hidden.",
 };
 
 // Set the theme class before paint to avoid a flash of the wrong theme.

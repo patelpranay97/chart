@@ -1,6 +1,13 @@
 // Core domain types for the trading game.
 
-export type Ticker = "SPY" | "QQQ" | "VOO";
+export type Ticker =
+  | "SPY" | "QQQ" | "VOO" // broad US equity
+  | "IWM" // small caps
+  | "XLF" | "XLK" | "XLU" | "XLV" | "XLE" // sectors
+  | "GLD" // gold
+  | "USO" // oil
+  | "TLT" // long Treasuries
+  | "EEM" | "FXI"; // emerging markets / China
 
 export type CandleType = "regular" | "heikin";
 
