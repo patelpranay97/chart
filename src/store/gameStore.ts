@@ -222,7 +222,7 @@ export const useGame = create<GameState>((set, get) => ({
   nextOrderId: 1,
   liquidated: false,
 
-  sizePct: 1,
+  sizePct: 0.25,
   indicators: DEFAULT_INDICATORS,
   candleType: "heikin",
   advanceOnTrade: true,
