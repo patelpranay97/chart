@@ -206,7 +206,10 @@ export default function Chart() {
     // Fit the whole window once per round, then let it scroll naturally.
     const key = `${round.symbol}-${round.candles[0]?.time}`;
     if (didFitRoundRef.current !== key) {
-      chart.timeScale().fitContent();
+      // Show a readable recent window; the player can pan left through the full
+      // ~170 bars of prior history to read the trend.
+      const total = displayCandles.length;
+      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 110), to: total + 1 });
       didFitRoundRef.current = key;
     } else {
       // Follow the newest bar as days reveal, preserving the user's zoom.
