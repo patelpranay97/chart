@@ -36,11 +36,11 @@ export default function PositionPanel() {
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-x-2 gap-y-2 sm:grid-cols-6">
+    <div className="grid grid-cols-3 gap-x-3 gap-y-3">
       {cols.map((c) => (
-        <div key={c.label} className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wide text-muted">{c.label}</span>
-          <span className={`font-mono text-sm ${c.tone ?? "text-fg"}`}>{c.value}</span>
+        <div key={c.label} className="flex min-w-0 flex-col">
+          <span className="truncate text-[10px] uppercase tracking-wide text-muted">{c.label}</span>
+          <span className={`truncate font-mono text-sm ${c.tone ?? "text-fg"}`}>{c.value}</span>
         </div>
       ))}
     </div>
