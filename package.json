@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "eslint",
     "fetch-data": "node scripts/fetch-data.mjs"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.0",
