@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import { fmtPct, fmtSignedUSD, fmtUSD, fmtUSDCompact } from "@/lib/format";
-import {
-  canTakeLoan,
-  LIFETIME_DAYS,
-  LOAN_THRESHOLD,
-  STARTING_CAPITAL,
-} from "@/lib/lifetime";
+import { canTakeLoan, LOAN_THRESHOLD, STARTING_CAPITAL } from "@/lib/lifetime";
 import { useGame, useLifetimeStats } from "@/store/gameStore";
 
 const LEVERAGE_PRESETS = [1, 2, 3, 5];
@@ -43,7 +38,6 @@ export default function SetupScreen() {
     .filter((e) => e.kind === "game")
     .slice(-6)
     .reverse();
-  const daysPct = Math.min(100, (stats.daysUsed / LIFETIME_DAYS) * 100);
   const loanable = canTakeLoan(stats);
 
   return (
@@ -51,8 +45,8 @@ export default function SetupScreen() {
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">Swing Trader</h1>
         <p className="mt-1 text-muted">
-          A random historical window of SPY, QQQ or VOO — symbol and date hidden.
-          Each game is 90 trading days of your {fmtUSDCompact(LIFETIME_DAYS)}-day lifetime.
+          Opens to a random day in SPY, QQQ or VOO history — symbol and date
+          hidden — and runs up to 100 trading days before it ends automatically.
         </p>
       </div>
 
@@ -75,25 +69,6 @@ export default function SetupScreen() {
               <div className="text-[11px] uppercase tracking-wide text-muted">Games</div>
               <div className="font-mono text-sm font-semibold">{stats.gamesPlayed}</div>
             </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted">Days left</div>
-              <div className="font-mono text-sm font-semibold">
-                {stats.daysLeft.toLocaleString()}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Lifetime usage bar */}
-        <div className="mt-4">
-          <div className="mb-1 flex justify-between text-[11px] text-muted">
-            <span>Lifetime used</span>
-            <span>
-              {stats.daysUsed.toLocaleString()} / {LIFETIME_DAYS.toLocaleString()} days
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-panel-2">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${daysPct}%` }} />
           </div>
         </div>
       </div>

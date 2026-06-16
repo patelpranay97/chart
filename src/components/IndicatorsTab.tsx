@@ -95,6 +95,7 @@ export default function IndicatorsTab() {
       />
       <Toggle checked={ind.flags} onChange={(v) => patch({ flags: v })} label="Entry / exit flags" />
       <Toggle checked={ind.orderLine} onChange={(v) => patch({ orderLine: v })} label="Cost-basis line" />
+      <Toggle checked={ind.tradeLines} onChange={(v) => patch({ tradeLines: v })} label="Trade lines" />
       <Toggle checked={ind.sma} onChange={(v) => patch({ sma: v })} label="SMA" swatch="#f5a623">
         <PeriodInput value={ind.smaPeriod} onChange={(n) => patch({ smaPeriod: n })} />
       </Toggle>

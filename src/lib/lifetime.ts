@@ -9,7 +9,7 @@ import type { Ticker } from "./types";
 
 export const STARTING_CAPITAL = 1_000_000;
 export const LIFETIME_DAYS = 18_250;
-export const SWING_DAYS = 90;
+export const SWING_DAYS = 100;
 export const LOAN_AMOUNT = 100_000;
 export const LOAN_THRESHOLD = 25_000;
 
@@ -49,17 +49,10 @@ export interface LifetimeStats {
   windowed: LifetimeEvent[];
 }
 
-// The most-recent suffix of events whose game-days total ≤ LIFETIME_DAYS.
+// Net worth is now a simple all-time cumulative account (the rolling-window
+// "lifetime used" tracker was removed), so every event counts.
 export function windowEvents(events: LifetimeEvent[]): LifetimeEvent[] {
-  let days = 0;
-  let startIdx = events.length;
-  for (let i = events.length - 1; i >= 0; i--) {
-    const d = events[i].days;
-    if (days + d > LIFETIME_DAYS) break;
-    days += d;
-    startIdx = i;
-  }
-  return events.slice(startIdx);
+  return events;
 }
 
 export function lifetimeStats(events: LifetimeEvent[]): LifetimeStats {

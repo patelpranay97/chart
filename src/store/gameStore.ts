@@ -37,6 +37,7 @@ const DEFAULT_CONFIG: GameConfig = { leverage: 1 };
 const DEFAULT_INDICATORS: IndicatorSettings = {
   flags: true,
   orderLine: true,
+  tradeLines: true,
   sma: true,
   smaPeriod: 20,
   sma2: false,
@@ -313,7 +314,12 @@ export const useGame = create<GameState>((set, get) => ({
 
   nextBar: () => {
     const s = get();
-    if (!s.round || s.revealed >= s.round.candles.length) return;
+    if (!s.round) return;
+    // Reached the trading-day cap → finish the game automatically.
+    if (s.revealed >= s.round.candles.length) {
+      if (s.phase === "playing") get().endGame();
+      return;
+    }
     const index = s.revealed; // newly revealed bar
     const bar = s.round.candles[index];
 

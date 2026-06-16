@@ -3,15 +3,6 @@
 import { fmtPrice, fmtShares, fmtSignedUSD } from "@/lib/format";
 import { useDerived, useGame } from "@/store/gameStore";
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-[11px] uppercase tracking-wide text-muted">{label}</span>
-      <span className="font-mono text-sm">{children}</span>
-    </div>
-  );
-}
-
 export default function PositionPanel() {
   const position = useGame((s) => s.position);
   const orders = useGame((s) => s.orders);
@@ -26,37 +17,32 @@ export default function PositionPanel() {
         .sort((a, b) => (position.dir === 1 ? b - a : a - b))[0]
     : undefined;
 
-  if (!position) {
-    return (
-      <div className="rounded-lg border border-dashed border-line px-3 py-3 text-center text-sm text-muted">
-        Flat — no open position
-      </div>
-    );
-  }
-
-  const long = position.dir === 1;
-  const up = stats.unrealizedPnL >= 0;
+  const up = position ? stats.unrealizedPnL >= 0 : false;
+  const cols: { label: string; value: string; tone?: string }[] = [
+    {
+      label: "Type",
+      value: position ? (position.dir === 1 ? "▲ Long" : "▼ Short") : "n/a",
+      tone: position ? (position.dir === 1 ? "text-up" : "text-down") : undefined,
+    },
+    { label: "Shares", value: position ? fmtShares(position.shares) : "n/a" },
+    { label: "Cost Basis", value: position ? fmtPrice(position.avgPrice) : "n/a" },
+    { label: "Market", value: position ? fmtPrice(stats.price) : "n/a" },
+    { label: "Stop", value: position && protectiveStop != null ? fmtPrice(protectiveStop) : "n/a" },
+    {
+      label: "Unreal. P/L",
+      value: position ? fmtSignedUSD(stats.unrealizedPnL, true) : "n/a",
+      tone: position ? (up ? "text-up" : "text-down") : undefined,
+    },
+  ];
 
   return (
-    <div className="rounded-lg border border-line bg-panel-2 p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span
-          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold ${
-            long ? "bg-up/15 text-up" : "bg-down/15 text-down"
-          }`}
-        >
-          {long ? "▲ LONG" : "▼ SHORT"}
-        </span>
-        <span className={`font-mono text-sm font-semibold ${up ? "text-up" : "text-down"}`}>
-          {fmtSignedUSD(stats.unrealizedPnL, true)}
-        </span>
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        <Cell label="Shares">{fmtShares(position.shares)}</Cell>
-        <Cell label="Cost">{fmtPrice(position.avgPrice)}</Cell>
-        <Cell label="Market">{fmtPrice(stats.price)}</Cell>
-        <Cell label="Stop">{protectiveStop != null ? fmtPrice(protectiveStop) : "n/a"}</Cell>
-      </div>
+    <div className="grid grid-cols-3 gap-x-2 gap-y-2 sm:grid-cols-6">
+      {cols.map((c) => (
+        <div key={c.label} className="flex flex-col">
+          <span className="text-[10px] uppercase tracking-wide text-muted">{c.label}</span>
+          <span className={`font-mono text-sm ${c.tone ?? "text-fg"}`}>{c.value}</span>
+        </div>
+      ))}
     </div>
   );
 }

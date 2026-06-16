@@ -99,10 +99,6 @@ export default function EndGameScreen() {
             <div className="text-[11px] uppercase tracking-wide text-muted">Cash</div>
             <div className="font-mono text-lg font-bold">{fmtUSD(stats.cash)}</div>
           </div>
-          <div>
-            <div className="text-[11px] uppercase tracking-wide text-muted">Days left</div>
-            <div className="font-mono text-lg font-bold">{stats.daysLeft.toLocaleString()}</div>
-          </div>
         </div>
         {canTakeLoan(stats) && (
           <button

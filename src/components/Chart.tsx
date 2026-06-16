@@ -55,12 +55,15 @@ export default function Chart() {
   const indicatorRefs = useRef<Record<string, ISeriesApi<"Line">>>({});
   const priceLineRef = useRef<IPriceLine | null>(null);
   const orderLineRefs = useRef<Record<number, IPriceLine>>({});
+  const tradeLineRefs = useRef<ISeriesApi<"Line">[]>([]);
   const didFitRoundRef = useRef<string | null>(null);
 
   const round = useGame((s) => s.round);
   const revealed = useGame((s) => s.revealed);
   const events = useGame((s) => s.events);
   const position = useGame((s) => s.position);
+  const positionEntryBar = useGame((s) => s.positionEntryBar);
+  const trades = useGame((s) => s.trades);
   const orders = useGame((s) => s.orders);
   const indicators = useGame((s) => s.indicators);
   const candleType = useGame((s) => s.candleType);
@@ -96,7 +99,7 @@ export default function Chart() {
       },
       rightPriceScale: {
         borderColor: c.border,
-        scaleMargins: { top: 0.08, bottom: 0.22 },
+        scaleMargins: { top: 0.1, bottom: 0.08 },
       },
       timeScale: {
         borderColor: c.border,
@@ -116,15 +119,21 @@ export default function Chart() {
       priceLineVisible: false,
     });
 
-    const volume = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "vol",
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-    volume.priceScale().applyOptions({
-      scaleMargins: { top: 0.84, bottom: 0 },
-    });
+    // Volume in its own pane below the candles (clearly visible, like chartgame)
+    // rather than a thin overlay strip.
+    const volume = chart.addSeries(
+      HistogramSeries,
+      { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false },
+      1,
+    );
+    volume.priceScale().applyOptions({ scaleMargins: { top: 0.2, bottom: 0 } });
+    try {
+      const panes = chart.panes();
+      panes[0]?.setStretchFactor(3.2);
+      panes[1]?.setStretchFactor(1);
+    } catch {
+      /* pane API unavailable — volume still renders */
+    }
 
     chartRef.current = chart;
     candleRef.current = candle;
@@ -140,6 +149,7 @@ export default function Chart() {
       indicatorRefs.current = {};
       priceLineRef.current = null;
       orderLineRefs.current = {};
+      tradeLineRefs.current = [];
       didFitRoundRef.current = null;
     };
   }, []);
@@ -194,6 +204,9 @@ export default function Chart() {
     if (didFitRoundRef.current !== key) {
       chart.timeScale().fitContent();
       didFitRoundRef.current = key;
+    } else {
+      // Follow the newest bar as days reveal, preserving the user's zoom.
+      chart.timeScale().scrollToRealTime();
     }
   }, [displayCandles, round, theme]);
 
@@ -282,6 +295,49 @@ export default function Chart() {
       });
     }
   }, [position, indicators.orderLine, theme]);
+
+  // Diagonal trade lines: entry→exit for closed trades, entry→current for the
+  // open position. Green = profit, red = loss. Each is its own 2-point series.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || !round) return;
+    for (const s of tradeLineRefs.current) chart.removeSeries(s);
+    tradeLineRefs.current = [];
+    if (!indicators.tradeLines) return;
+    const c = themeColors(theme);
+
+    const addLine = (color: string, pts: { time: Time; value: number }[]) => {
+      const ls = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      ls.setData(pts);
+      tradeLineRefs.current.push(ls);
+    };
+
+    for (const t of trades) {
+      if (t.entryBar === t.exitBar) continue;
+      addLine(t.pnl >= 0 ? c.up : c.down, [
+        { time: round.candles[t.entryBar].time as Time, value: t.entryPrice },
+        { time: round.candles[t.exitBar].time as Time, value: t.exitPrice },
+      ]);
+    }
+
+    if (position && positionEntryBar != null) {
+      const idx = revealed - 1;
+      if (positionEntryBar !== idx) {
+        const cur = round.candles[idx].close;
+        const unreal = position.dir * position.shares * (cur - position.avgPrice);
+        addLine(unreal >= 0 ? c.up : c.down, [
+          { time: round.candles[positionEntryBar].time as Time, value: position.avgPrice },
+          { time: round.candles[idx].time as Time, value: cur },
+        ]);
+      }
+    }
+  }, [trades, position, positionEntryBar, revealed, round, indicators.tradeLines, theme]);
 
   // Resting limit/stop order lines.
   useEffect(() => {

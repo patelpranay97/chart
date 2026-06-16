@@ -6,7 +6,7 @@ export const TICKERS: Ticker[] = ["SPY", "QQQ", "VOO"];
 // How many candles are visible at the start of a round, and how many future
 // bars the player can advance through before the round must end.
 export const INITIAL_BARS = 80;
-export const MAX_FUTURE = 60;
+export const MAX_FUTURE = 100;
 const WINDOW = INITIAL_BARS + MAX_FUTURE;
 
 const cache = new Map<Ticker, TickerData>();

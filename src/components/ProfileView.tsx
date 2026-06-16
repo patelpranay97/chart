@@ -121,7 +121,6 @@ export default function ProfileView() {
         <StatCard label="Std dev" value={`${s.stdReturnPct.toFixed(1)}%`} />
         <StatCard label="Liquidations" value={String(s.liquidations)} tone={s.liquidations > 0 ? "down" : undefined} />
         <StatCard label="Skips" value={String(s.skipped)} />
-        <StatCard label="Days used" value={s.daysUsed.toLocaleString()} />
       </div>
 
       <div className="rounded-xl border border-line bg-panel p-5">

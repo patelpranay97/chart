@@ -71,6 +71,7 @@ export interface GameConfig {
 export interface IndicatorSettings {
   flags: boolean;
   orderLine: boolean;
+  tradeLines: boolean;
   sma: boolean;
   smaPeriod: number;
   sma2: boolean;
