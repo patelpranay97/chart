@@ -20,7 +20,9 @@ export default function EndGameScreen() {
   const blurb = result.liquidated
     ? "Your position blew through your cash — forced exit."
     : rating.blurb;
-  const win = !result.liquidated && result.profit >= 0;
+  // A "win" is beating buy & hold (alpha), not just ending green — holding an
+  // ETF usually ends green on its own.
+  const win = result.ratingTier >= 4;
   const beatHold = result.returnPct >= result.buyHoldPct;
 
   return (

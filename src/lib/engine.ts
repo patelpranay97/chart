@@ -15,19 +15,27 @@ export interface FillInput {
 
 export type FillSlice = FillInput;
 
+// Per-side transaction cost (slippage/spread). Buys fill a touch above and
+// sells a touch below the close, so every round-trip pays a real cost and the
+// frictionless buy & hold benchmark is genuinely hard to beat by overtrading.
+export const SLIPPAGE = 0.0005; // 5 bps
+
 export function computeFill(
   s: FillInput,
   side: OrderSide,
   shares: number,
   price: number,
   index: number,
+  slippage: number = SLIPPAGE,
 ): FillSlice | null {
   if (shares < 1) return null;
+  // Worse-than-market execution: pay up to buy, give up a bit to sell.
+  const fillPrice = side === "buy" ? price * (1 + slippage) : price * (1 - slippage);
   const signed = s.position ? s.position.dir * s.position.shares : 0;
   const avg = s.position ? s.position.avgPrice : 0;
   const delta = side === "buy" ? shares : -shares;
   const newSigned = signed + delta;
-  const cash = s.cash - delta * price; // buy spends cash, sell receives cash
+  const cash = s.cash - delta * fillPrice; // buy spends cash, sell receives cash
 
   let realizedPnL = s.realizedPnL;
   let trades = s.trades;
@@ -38,7 +46,7 @@ export function computeFill(
   if (closing) {
     const dir = Math.sign(signed) as Direction;
     const closeShares = Math.min(shares, Math.abs(signed));
-    const pnl = dir * closeShares * (price - avg);
+    const pnl = dir * closeShares * (fillPrice - avg);
     realizedPnL += pnl;
     trades = [
       ...trades,
@@ -46,10 +54,10 @@ export function computeFill(
         id: nextTradeId,
         dir,
         entryPrice: avg,
-        exitPrice: price,
+        exitPrice: fillPrice,
         shares: closeShares,
         pnl,
-        pnlPct: dir * ((price - avg) / avg) * 100,
+        pnlPct: dir * ((fillPrice - avg) / avg) * 100,
         entryBar: s.positionEntryBar ?? index,
         exitBar: index,
       },
@@ -70,10 +78,10 @@ export function computeFill(
     const dir = Math.sign(newSigned) as Direction;
     let newAvg: number;
     if (signed === 0 || flipped) {
-      newAvg = price;
+      newAvg = fillPrice;
       positionEntryBar = index;
     } else if (adding) {
-      newAvg = (Math.abs(signed) * avg + shares * price) / Math.abs(newSigned);
+      newAvg = (Math.abs(signed) * avg + shares * fillPrice) / Math.abs(newSigned);
     } else {
       newAvg = avg; // reduced, basis unchanged
     }

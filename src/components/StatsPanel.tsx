@@ -36,8 +36,18 @@ export default function StatsPanel() {
   const tone = (n: number): "up" | "down" | "neutral" =>
     n > 0 ? "up" : n < 0 ? "down" : "neutral";
 
+  const alpha = stats.returnPct - stats.buyHoldPct;
+
   return (
     <div className="grid grid-cols-2 gap-2">
+      <div className="col-span-2">
+        <Stat
+          label="Edge vs Buy & Hold"
+          value={fmtPct(alpha)}
+          tone={tone(alpha)}
+          sub="beat this to score — sit out drops, time entries, short the falls"
+        />
+      </div>
       <Stat
         label="Account Value"
         value={fmtUSD(stats.equity, { cents: true })}

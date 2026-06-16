@@ -46,7 +46,10 @@ export default function SetupScreen() {
         <h1 className="text-3xl font-bold tracking-tight">Swing Trader</h1>
         <p className="mt-1 text-muted">
           Opens to a random day in SPY, QQQ or VOO history — symbol and date
-          hidden — and runs up to 100 trading days before it ends automatically.
+          hidden — for up to 100 trading days. An ETF drifts up, so the goal
+          isn&apos;t just making money: it&apos;s to{" "}
+          <span className="font-medium text-fg">beat buy &amp; hold</span> — sit
+          out the drops, ride the trends, short the falls.
         </p>
       </div>
 

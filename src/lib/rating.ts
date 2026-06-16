@@ -6,22 +6,29 @@ export interface Rating {
   blurb: string;
 }
 
-// returnPct = total P/L as % of starting cash.
-// edge = returnPct - buyHoldPct (how much you beat just holding).
+// Skill is measured by ALPHA — beating a simple buy & hold — not raw profit.
+// An ETF drifts up, so always-long just *matches* the market (a mediocre
+// score); real edge comes from sitting out drops, shorting, and good timing.
+//
+// returnPct = total P/L as % of starting cash (the player).
+// edge      = returnPct - buyHoldPct (how much you beat just holding).
 export function ratePerformance(returnPct: number, edge: number): Rating {
-  if (returnPct >= 25)
-    return { tier: 6, label: "Masterful Performance", blurb: "Elite tape reading. You crushed it." };
-  if (returnPct >= 12)
-    return { tier: 5, label: "Excellent Trading", blurb: "Strong, disciplined trades." };
-  if (returnPct >= 4)
-    return { tier: 4, label: "Solid Session", blurb: "Green and steady — good work." };
-  if (returnPct >= -2)
+  if (edge >= 15)
+    return { tier: 6, label: "Masterful Alpha", blurb: "You demolished buy & hold. Elite timing." };
+  if (edge >= 6)
+    return { tier: 5, label: "Sharp Edge", blurb: "Clear, repeatable edge over the market." };
+  if (edge >= 1.5)
+    return { tier: 4, label: "Beat the Market", blurb: "You added real alpha — nicely done." };
+  if (edge >= -1.5)
     return {
       tier: 3,
-      label: "Roughly Flat",
-      blurb: edge >= 0 ? "About even, but you read the trend right." : "Treaded water this round.",
+      label: "Matched the Market",
+      blurb:
+        returnPct >= 0
+          ? "Basically buy & hold. Find an edge: sit out drops, time entries."
+          : "Held through the fall instead of stepping aside.",
     };
-  if (returnPct >= -10)
-    return { tier: 2, label: "Rough Round", blurb: "The tape got the better of you." };
-  return { tier: 1, label: "Wiped Out", blurb: "Brutal. Reset and run it back." };
+  if (edge >= -8)
+    return { tier: 2, label: "Lagged the Market", blurb: "Your trades cost you vs simply holding." };
+  return { tier: 1, label: "Churned & Burned", blurb: "Overtrading or wrong-way bets bled your alpha." };
 }
