@@ -15,10 +15,10 @@ export default function TradesTab() {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="max-h-72 overflow-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+          <tr className="sticky top-0 z-10 bg-panel text-left text-[11px] uppercase tracking-wide text-muted">
             <th className="py-1 pr-2 font-medium">L/S</th>
             <th className="py-1 pr-2 text-right font-medium">Enter</th>
             <th className="py-1 pr-2 text-right font-medium">Exit</th>
