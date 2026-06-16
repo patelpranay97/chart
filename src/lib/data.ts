@@ -43,9 +43,9 @@ function regimeOf(candles: Candle[]): Regime {
   const startClose = candles[INITIAL_BARS - 1].close;
   const endClose = candles[candles.length - 1].close;
   const r = (endClose - startClose) / startClose;
-  if (r > 0.05) return "bull";
-  if (r < -0.03) return "bear";
-  return "chop";
+  if (r > 0.05) return "bull"; // clear up-trend
+  if (r < -0.05) return "bear"; // clear down-trend
+  return "chop"; // ranges within ±5% — the choppy majority
 }
 
 // Picks a random contiguous window, balanced across up / down / sideways
@@ -54,7 +54,9 @@ function regimeOf(candles: Candle[]): Regime {
 // drops, or short. Falls back to any window if the target is hard to find.
 export async function buildRandomRound(): Promise<Round> {
   const datas = await Promise.all(TICKERS.map(loadTicker));
-  const target: Regime = (["bull", "bear", "chop"] as const)[randInt(3)];
+  // Mostly choppy, with the occasional clear up- or down-trend.
+  const roll = Math.random();
+  const target: Regime = roll < 0.5 ? "chop" : roll < 0.75 ? "bull" : "bear";
   let fallback: Round | null = null;
 
   for (let attempt = 0; attempt < 80; attempt++) {

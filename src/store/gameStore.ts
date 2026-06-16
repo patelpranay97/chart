@@ -421,7 +421,7 @@ export const useGame = create<GameState>((set, get) => ({
     const liquidated = after.liquidated;
     const rating = liquidated
       ? { tier: 0, label: "Liquidated" }
-      : ratePerformance(returnPct, returnPct - buyHoldPct);
+      : ratePerformance(returnPct);
     const result: GameResult = {
       symbol: after.round!.symbol,
       startDate: after.round!.candles[0].time,

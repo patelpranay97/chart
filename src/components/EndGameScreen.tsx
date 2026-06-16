@@ -15,15 +15,12 @@ export default function EndGameScreen() {
   const addLoan = useGame((s) => s.addLoan);
   if (!result) return null;
 
-  const rating = ratePerformance(result.returnPct, result.returnPct - result.buyHoldPct);
+  const rating = ratePerformance(result.returnPct);
   const label = result.liquidated ? "Liquidated" : rating.label;
   const blurb = result.liquidated
     ? "Your position blew through your cash — forced exit."
     : rating.blurb;
-  // A "win" is beating buy & hold (alpha), not just ending green — holding an
-  // ETF usually ends green on its own.
-  const win = result.ratingTier >= 4;
-  const beatHold = result.returnPct >= result.buyHoldPct;
+  const win = !result.liquidated && result.profit >= 0;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-10">
@@ -71,16 +68,8 @@ export default function EndGameScreen() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2 text-sm">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              beatHold ? "bg-up/15 text-up" : "bg-down/15 text-down"
-            }`}
-          >
-            {beatHold ? "Beat buy & hold" : "Lagged buy & hold"} by{" "}
-            {fmtPct(result.returnPct - result.buyHoldPct)}
-          </span>
-          <span className="text-muted">· {result.trades} trade{result.trades === 1 ? "" : "s"}</span>
+        <div className="mt-3 text-center text-sm text-muted">
+          {result.trades} trade{result.trades === 1 ? "" : "s"} this round
         </div>
       </div>
 
